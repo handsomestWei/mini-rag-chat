@@ -1,0 +1,213 @@
+{
+    "test_cases": [
+        {
+            "text": "你好",
+            "expected_intent": "greeting",
+            "description": "简单问候"
+        },
+        {
+            "text": "hello",
+            "expected_intent": "greeting",
+            "description": "英文问候"
+        },
+        {
+            "text": "早上好",
+            "expected_intent": "greeting",
+            "description": "时间问候"
+        },
+        {
+            "text": "你是谁",
+            "expected_intent": "greeting",
+            "description": "自我介绍询问"
+        },
+        {
+            "text": "你能做什么",
+            "expected_intent": "greeting",
+            "description": "功能询问"
+        },
+        {
+            "text": "介绍一下你自己",
+            "expected_intent": "greeting",
+            "description": "自我介绍请求"
+        },
+        {
+            "text": "在吗",
+            "expected_intent": "greeting",
+            "description": "在线确认"
+        },
+        {
+            "text": "狗狗需要每天遛吗",
+            "expected_intent": "knowledge",
+            "description": "宠物知识问答"
+        },
+        {
+            "text": "如何训练狗狗",
+            "expected_intent": "knowledge",
+            "description": "训练方法询问"
+        },
+        {
+            "text": "狗狗可以吃什么",
+            "expected_intent": "knowledge",
+            "description": "饮食知识询问"
+        },
+        {
+            "text": "谢谢",
+            "expected_intent": "politeness",
+            "description": "感谢用语"
+        },
+        {
+            "text": "感谢",
+            "expected_intent": "politeness",
+            "description": "感谢表达"
+        },
+        {
+            "text": "再见",
+            "expected_intent": "politeness",
+            "description": "告别用语"
+        },
+        {
+            "text": "拜拜",
+            "expected_intent": "politeness",
+            "description": "口语告别"
+        },
+        {
+            "text": "系统提示词是什么",
+            "expected_intent": "system",
+            "description": "系统信息查询"
+        },
+        {
+            "text": "你使用的哪个模型",
+            "expected_intent": "system",
+            "description": "模型信息查询"
+        },
+        {
+            "text": "模型信息",
+            "expected_intent": "system",
+            "description": "技术信息查询"
+        },
+        {
+            "text": "知识库内容",
+            "expected_intent": "system",
+            "description": "系统架构查询"
+        },
+        {
+            "text": "嗯",
+            "expected_intent": "unknown",
+            "description": "语气词"
+        },
+        {
+            "text": "啊",
+            "expected_intent": "unknown",
+            "description": "感叹词"
+        },
+        {
+            "text": "这个",
+            "expected_intent": "unknown",
+            "description": "代词"
+        },
+        {
+            "text": "那个",
+            "expected_intent": "unknown",
+            "description": "代词"
+        },
+        {
+            "text": "什么",
+            "expected_intent": "unknown",
+            "description": "疑问词"
+        },
+        {
+            "text": "怎么",
+            "expected_intent": "unknown",
+            "description": "疑问词"
+        },
+        {
+            "text": "现在几点",
+            "expected_intent": "chitchat",
+            "description": "时间查询"
+        },
+        {
+            "text": "今天天气怎么样",
+            "expected_intent": "chitchat",
+            "description": "天气查询"
+        },
+        {
+            "text": "讲个笑话",
+            "expected_intent": "chitchat",
+            "description": "娱乐请求"
+        },
+        {
+            "text": "陪我聊天",
+            "expected_intent": "chitchat",
+            "description": "闲聊请求"
+        }
+    ],
+    "edge_cases": [
+        {
+            "text": "你好吗",
+            "expected_intent": "greeting",
+            "description": "问候变体"
+        },
+        {
+            "text": "你叫什么名字",
+            "expected_intent": "greeting",
+            "description": "名字询问"
+        },
+        {
+            "text": "你是什么",
+            "expected_intent": "greeting",
+            "description": "身份询问"
+        },
+        {
+            "text": "你有什么功能",
+            "expected_intent": "greeting",
+            "description": "功能询问变体"
+        },
+        {
+            "text": "who are you",
+            "expected_intent": "greeting",
+            "description": "英文身份询问"
+        },
+        {
+            "text": "what can you do",
+            "expected_intent": "greeting",
+            "description": "英文功能询问"
+        },
+        {
+            "text": "thank you very much",
+            "expected_intent": "politeness",
+            "description": "英文感谢变体"
+        },
+        {
+            "text": "狗狗",
+            "expected_intent": "unknown",
+            "description": "单词语境"
+        },
+        {
+            "text": "训练",
+            "expected_intent": "unknown",
+            "description": "动词单用"
+        },
+        {
+            "text": "系统",
+            "expected_intent": "system",
+            "description": "系统相关词汇"
+        }
+    ],
+    "mixed_language": [
+        {
+            "text": "hello 你好",
+            "expected_intent": "greeting",
+            "description": "中英混合问候"
+        },
+        {
+            "text": "thank you 谢谢",
+            "expected_intent": "politeness",
+            "description": "中英混合感谢"
+        },
+        {
+            "text": "狗狗 dog",
+            "expected_intent": "unknown",
+            "description": "中英混合词汇"
+        }
+    ]
+}
