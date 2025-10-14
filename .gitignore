@@ -59,19 +59,27 @@ dmyp.json
 app.log
 
 # Data directories (exclude from git)
-data/
-data_new/
+data/*
+!data/.gitkeep
+data_new/*
+!data_new/.gitkeep
 
-# Model directories (exclude from git)
-model/
+# Model directories (exclude from git, but keep directory structure)
+model/*
+!model/.gitkeep
+!model/*/
+model/*/**
 
 # Vector store (exclude from git)
-vector_store/
+vector_store/*
+!vector_store/.gitkeep
 *.faiss
-*.pkl
 
-# Intent fine-tuning outputs (exclude from git)
-intent_fine_tuning/models/
+# Intent fine-tuning outputs (exclude from git, but keep directory structure)
+intent_fine_tuning/model/*
+!intent_fine_tuning/model/.gitkeep
+!intent_fine_tuning/model/*/
+intent_fine_tuning/model/*/**
 intent_fine_tuning/__pycache__/
 
 # Temporary files

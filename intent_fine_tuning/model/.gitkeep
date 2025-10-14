@@ -1,0 +1,5 @@
+# 此文件用于保留 intent_fine_tuning/model/ 目录
+# 训练脚本会在此生成：
+# - intent-classifier/intent_classifier.pkl
+# - intent-classifier/label_encoder.json
+

@@ -8,8 +8,6 @@
 [![LangChain](https://img.shields.io/badge/LangChain-0.1+-green.svg)](https://github.com/langchain-ai/langchain)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-*专为 2核4G 等低配服务器设计，支持中文优化、模块化架构、增量加载*
-
 </div>
 
 ---
@@ -155,14 +153,14 @@ python test.py
 cd ..
 ```
 
-**重要**：训练后的模型会保存在 `intent_fine_tuning/models/intent-classifier/`，使用时需要手动拷贝到 `model/intent-classifier/`：
+**重要**：训练后的模型会保存在 `intent_fine_tuning/model/intent-classifier/`，使用时需要手动拷贝到 `model/intent-classifier/`：
 
 ```bash
 # Windows (PowerShell)
-Copy-Item -Path "intent_fine_tuning\models\intent-classifier\*" -Destination "model\intent-classifier\" -Recurse -Force
+Copy-Item -Path "intent_fine_tuning\model\intent-classifier\*" -Destination "model\intent-classifier\" -Recurse -Force
 
 # Linux/macOS
-cp -r intent_fine_tuning/models/intent-classifier/* model/intent-classifier/
+cp -r intent_fine_tuning/model/intent-classifier/* model/intent-classifier/
 ```
 
 详细说明见：[intent_fine_tuning/README.md](intent_fine_tuning/README.md)
