@@ -8,15 +8,20 @@ import os
 import sys
 import argparse
 from intent_classifier import IntentClassifier
+from fine_tuning_config import (
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_SAVE_DIR,
+    DEFAULT_TEST_SIZE
+)
 
 
 def main():
     parser = argparse.ArgumentParser(description='训练意图分类器')
-    parser.add_argument('--model_path', type=str, default='../model/moka-ai/m3e-small',
-                       help='m3e-small模型路径')
-    parser.add_argument('--save_dir', type=str, default='./models/intent-classifier',
+    parser.add_argument('--model_path', type=str, default=DEFAULT_EMBEDDING_MODEL,
+                       help='embedding模型路径（默认：m3e-small）')
+    parser.add_argument('--save_dir', type=str, default=DEFAULT_SAVE_DIR,
                        help='模型保存目录')
-    parser.add_argument('--test_size', type=float, default=0.2,
+    parser.add_argument('--test_size', type=float, default=DEFAULT_TEST_SIZE,
                        help='测试集比例')
 
     args = parser.parse_args()

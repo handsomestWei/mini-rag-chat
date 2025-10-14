@@ -6,17 +6,22 @@
 
 import argparse
 from intent_classifier import IntentClassifier, load_test_data
+from fine_tuning_config import (
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_SAVE_DIR,
+    DEFAULT_TEST_DATA
+)
 
 
 def main():
     parser = argparse.ArgumentParser(description='测试意图分类器')
-    parser.add_argument('--model_path', type=str, default='../model/moka-ai/m3e-small',
-                       help='m3e-small模型路径')
-    parser.add_argument('--model_dir', type=str, default='./models/intent-classifier',
+    parser.add_argument('--model_path', type=str, default=DEFAULT_EMBEDDING_MODEL,
+                       help='embedding模型路径（默认：m3e-small）')
+    parser.add_argument('--model_dir', type=str, default=DEFAULT_SAVE_DIR,
                        help='训练好的模型目录')
     parser.add_argument('--text', type=str, default=None,
                        help='要测试的文本')
-    parser.add_argument('--test_file', type=str, default='test_data.json',
+    parser.add_argument('--test_file', type=str, default=DEFAULT_TEST_DATA,
                        help='测试数据文件')
 
     args = parser.parse_args()

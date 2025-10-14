@@ -16,6 +16,19 @@ from sklearn.metrics import classification_report, accuracy_score
 import joblib
 from tqdm import tqdm
 
+# 导入配置
+from fine_tuning_config import (
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_SAVE_DIR,
+    DEFAULT_GENERAL_DATA,
+    DEFAULT_DOMAIN_DATA,
+    DEFAULT_TEST_DATA,
+    DEFAULT_TEST_SIZE,
+    CLASSIFIER_PARAMS,
+    INTENT_CLASSES,
+    INTENT_CONFIG
+)
+
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -24,7 +37,7 @@ logger = logging.getLogger(__name__)
 class IntentClassifier:
     """基于m3e-small的意图分类器"""
 
-    def __init__(self, model_path: str = "../model/moka-ai/m3e-small"):
+    def __init__(self, model_path: str = DEFAULT_EMBEDDING_MODEL):
         """
         初始化意图分类器
 
@@ -36,43 +49,9 @@ class IntentClassifier:
         self.classifier = None
         self.label_encoder = None
 
-        # 意图类别定义
-        self.intent_classes = [
-            "greeting",      # 问候
-            "knowledge",     # 知识问答
-            "politeness",    # 礼貌用语
-            "system",        # 系统交互
-            "chitchat",      # 闲聊（时间、天气、笑话等）
-            "unknown"        # 未知/其他
-        ]
-
-        # 意图配置
-        self.intent_config = {
-            "greeting": {
-                "skip_rag": True,
-                "response": "你好！我是智能问答助手，有什么可以帮助您的吗？"
-            },
-            "politeness": {
-                "skip_rag": True,
-                "response": "不客气！如有其他问题，随时提问。"
-            },
-            "system": {
-                "skip_rag": True,
-                "response": "抱歉，我无法回答关于系统技术细节的问题。请询问知识库相关的内容。"
-            },
-            "chitchat": {
-                "skip_rag": True,
-                "response": "抱歉，我是专业的知识问答助手，暂时无法回答时间、天气等闲聊问题。请询问知识库相关的内容。"
-            },
-            "knowledge": {
-                "skip_rag": False,
-                "response": None  # 正常RAG流程
-            },
-            "unknown": {
-                "skip_rag": True,
-                "response": "抱歉，我还不能理解您的问题，请补充完善您的提问。"
-            }
-        }
+        # 从配置文件加载意图类别和配置
+        self.intent_classes = INTENT_CLASSES
+        self.intent_config = INTENT_CONFIG
 
         self._load_embedding_model()
 
@@ -87,8 +66,8 @@ class IntentClassifier:
             raise
 
     def load_training_data(self,
-                          general_file: str = "training_data_general.json",
-                          domain_file: str = "training_data_domain.json") -> List[Tuple[str, str]]:
+                          general_file: str = DEFAULT_GENERAL_DATA,
+                          domain_file: str = DEFAULT_DOMAIN_DATA) -> List[Tuple[str, str]]:
         """
         从外部文件加载训练数据（支持通用数据和领域数据分离）
 
@@ -146,8 +125,8 @@ class IntentClassifier:
 
 
     def prepare_training_data(self,
-                             general_file: str = "training_data_general.json",
-                             domain_file: str = "training_data_domain.json") -> List[Tuple[str, str]]:
+                             general_file: str = DEFAULT_GENERAL_DATA,
+                             domain_file: str = DEFAULT_DOMAIN_DATA) -> List[Tuple[str, str]]:
         """
         准备训练数据（兼容性方法）
 
@@ -182,7 +161,7 @@ class IntentClassifier:
         logger.info(f"特征提取完成，维度: {embeddings.shape}")
         return embeddings
 
-    def train_classifier(self, training_data: List[Tuple[str, str]], test_size: float = 0.2):
+    def train_classifier(self, training_data: List[Tuple[str, str]], test_size: float = DEFAULT_TEST_SIZE):
         """
         训练分类器
 
@@ -214,11 +193,7 @@ class IntentClassifier:
 
         # 训练分类器
         logger.info("训练LogisticRegression分类器...")
-        self.classifier = LogisticRegression(
-            random_state=42,
-            max_iter=1000,
-            multi_class='ovr'  # 一对多策略
-        )
+        self.classifier = LogisticRegression(**CLASSIFIER_PARAMS)
 
         # 使用tqdm显示训练进度（LogisticRegression本身不直接支持进度条，但我们可以模拟）
         logger.info("开始训练...")
@@ -275,7 +250,7 @@ class IntentClassifier:
 
         return result
 
-    def save_model(self, model_dir: str = "./models/intent-classifier"):
+    def save_model(self, model_dir: str = DEFAULT_SAVE_DIR):
         """
         保存模型
 
@@ -300,7 +275,7 @@ class IntentClassifier:
 
         logger.info(f"模型已保存到: {model_dir}")
 
-    def load_model(self, model_dir: str = "./models/intent-classifier"):
+    def load_model(self, model_dir: str = DEFAULT_SAVE_DIR):
         """
         加载模型
 
@@ -323,7 +298,7 @@ class IntentClassifier:
         logger.info(f"模型已从 {model_dir} 加载完成")
 
 
-def load_test_data(test_file: str = "test_data.json") -> List[Dict]:
+def load_test_data(test_file: str = DEFAULT_TEST_DATA) -> List[Dict]:
     """
     从外部文件加载测试数据
 
