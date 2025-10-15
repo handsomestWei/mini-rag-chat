@@ -135,24 +135,23 @@ class ChatHandler:
             logger.info(f"检索完成 (耗时: {retrieval_time:.3f}秒)")
             logger.info(f"检索到 {len(relevant_docs)} 个相关文档")
 
-            # 记录检索到的文档（debug级别）
-            logger.debug("=" * 80)
-            logger.debug("📄 检索到的文档详情:")
-            logger.debug("=" * 80)
+            # 记录检索到的文档（debug级别，使用单条日志避免重复）
+            doc_log_lines = ["=" * 80, "📄 检索到的文档详情:", "=" * 80]
             for i, doc in enumerate(relevant_docs, 1):
-                logger.debug(f"\n【文档 {i}/{len(relevant_docs)}】")
+                doc_log_lines.append(f"\n【文档 {i}/{len(relevant_docs)}】")
 
                 # 打印元数据
                 if hasattr(doc, 'metadata') and doc.metadata:
-                    logger.debug(f"📋 元数据: {doc.metadata}")
+                    doc_log_lines.append(f"📋 元数据: {doc.metadata}")
 
                 # 打印文档内容（完整内容）
                 content = doc.page_content
-                logger.debug(f"📝 内容长度: {len(content)} 字符")
-                logger.debug(f"💬 完整内容:\n{content}")
-                logger.debug("-" * 60)
+                doc_log_lines.append(f"📝 内容长度: {len(content)} 字符")
+                doc_log_lines.append(f"💬 完整内容:\n{content}")
+                doc_log_lines.append("-" * 60)
 
-            logger.debug("=" * 80)
+            doc_log_lines.append("=" * 80)
+            logger.debug("\n".join(doc_log_lines))
 
             # 第3步：LLM生成回答
             logger.info("步骤2: LLM生成回答")
@@ -161,13 +160,16 @@ class ChatHandler:
             # 使用原始用户问题
             chinese_question = user_input
 
-            # Debug: 打印发送给LLM的完整上下文
-            logger.debug("=" * 80)
-            logger.debug("💭 发送给LLM的上下文:")
-            logger.debug("=" * 80)
-            logger.debug(f"📋 问题: {chinese_question}")
-            logger.debug(f"📚 检索到的文档数量: {len(relevant_docs)}")
-            logger.debug("=" * 80)
+            # Debug: 打印发送给LLM的完整上下文（使用单条日志避免重复）
+            context_log = (
+                "=" * 80 + "\n" +
+                "💭 发送给LLM的上下文:\n" +
+                "=" * 80 + "\n" +
+                f"📋 问题: {chinese_question}\n" +
+                f"📚 检索到的文档数量: {len(relevant_docs)}\n" +
+                "=" * 80
+            )
+            logger.debug(context_log)
 
             # 调用chain生成回答
             result = self.chain({"question": chinese_question, "chat_history": []})
@@ -180,13 +182,16 @@ class ChatHandler:
             answer_preview = answer[:150].replace('\n', ' ')
             logger.info(f"生成的回答 (预览): {answer_preview}...")
 
-            # Debug: 打印完整的LLM回答
-            logger.debug("=" * 80)
-            logger.debug("💬 LLM生成的完整回答:")
-            logger.debug("=" * 80)
-            logger.debug(f"📝 回答长度: {len(answer)} 字符")
-            logger.debug(f"💭 完整内容:\n{answer}")
-            logger.debug("=" * 80)
+            # Debug: 打印完整的LLM回答（使用单条日志避免重复）
+            answer_log = (
+                "=" * 80 + "\n" +
+                "💬 LLM生成的完整回答:\n" +
+                "=" * 80 + "\n" +
+                f"📝 回答长度: {len(answer)} 字符\n" +
+                f"💭 完整内容:\n{answer}\n" +
+                "=" * 80
+            )
+            logger.debug(answer_log)
 
             # 记录总耗时和内存
             total_time = time.time() - start_time
@@ -301,18 +306,17 @@ class ChatHandler:
             logger.info(f"检索完成 (耗时: {retrieval_time:.3f}秒)")
             logger.info(f"检索到 {len(relevant_docs)} 个相关文档")
 
-            # 记录检索到的原始文档（debug级别）
-            logger.debug("=" * 80)
-            logger.debug("📄 检索到的原始文档:")
-            logger.debug("=" * 80)
+            # 记录检索到的原始文档（debug级别，使用单条日志避免重复）
+            doc_log_lines = ["=" * 80, "📄 检索到的原始文档:", "=" * 80]
             for i, doc in enumerate(relevant_docs, 1):
-                logger.debug(f"\n【原始文档 {i}/{len(relevant_docs)}】")
+                doc_log_lines.append(f"\n【原始文档 {i}/{len(relevant_docs)}】")
                 if hasattr(doc, 'metadata') and doc.metadata:
-                    logger.debug(f"📋 元数据: {doc.metadata}")
-                logger.debug(f"📝 长度: {len(doc.page_content)} 字符")
-                logger.debug(f"💬 内容:\n{doc.page_content}")
-                logger.debug("-" * 60)
-            logger.debug("=" * 80)
+                    doc_log_lines.append(f"📋 元数据: {doc.metadata}")
+                doc_log_lines.append(f"📝 长度: {len(doc.page_content)} 字符")
+                doc_log_lines.append(f"💬 内容:\n{doc.page_content}")
+                doc_log_lines.append("-" * 60)
+            doc_log_lines.append("=" * 80)
+            logger.debug("\n".join(doc_log_lines))
 
             # 文档压缩
             if self.doc_compressor:
@@ -321,16 +325,15 @@ class ChatHandler:
                 compression_time = time.time() - compression_start
                 logger.info(f"文档压缩完成 (耗时: {compression_time:.3f}秒)")
 
-                # 记录压缩后的文档（debug级别）
-                logger.debug("=" * 80)
-                logger.debug("📄 压缩后的文档:")
-                logger.debug("=" * 80)
+                # 记录压缩后的文档（debug级别，使用单条日志避免重复）
+                compressed_log_lines = ["=" * 80, "📄 压缩后的文档:", "=" * 80]
                 for i, doc in enumerate(relevant_docs, 1):
-                    logger.debug(f"\n【压缩文档 {i}/{len(relevant_docs)}】")
-                    logger.debug(f"📝 长度: {len(doc.page_content)} 字符")
-                    logger.debug(f"💬 内容:\n{doc.page_content}")
-                    logger.debug("-" * 60)
-                logger.debug("=" * 80)
+                    compressed_log_lines.append(f"\n【压缩文档 {i}/{len(relevant_docs)}】")
+                    compressed_log_lines.append(f"📝 长度: {len(doc.page_content)} 字符")
+                    compressed_log_lines.append(f"💬 内容:\n{doc.page_content}")
+                    compressed_log_lines.append("-" * 60)
+                compressed_log_lines.append("=" * 80)
+                logger.debug("\n".join(compressed_log_lines))
             else:
                 compression_time = 0
                 logger.debug("文档压缩器未启用")
@@ -361,12 +364,15 @@ class ChatHandler:
                 question=user_input
             )
 
-            # Debug: 打印完整的提示词
-            logger.debug("=" * 80)
-            logger.debug("💭 发送给LLM的完整提示词（流式模式）:")
-            logger.debug("=" * 80)
-            logger.debug(full_prompt)
-            logger.debug("=" * 80)
+            # Debug: 打印完整的提示词（使用单条日志避免重复）
+            prompt_log = (
+                "=" * 80 + "\n" +
+                "💭 发送给LLM的完整提示词（流式模式）:\n" +
+                "=" * 80 + "\n" +
+                full_prompt + "\n" +
+                "=" * 80
+            )
+            logger.debug(prompt_log)
 
             # 使用 LLM 的流式接口
             # 需要访问原始 LLM 对象
@@ -388,13 +394,16 @@ class ChatHandler:
             logger.info(f"LLM流式回答完成 (耗时: {llm_time:.3f}秒)")
             logger.info(f"总耗时: {total_time:.3f}秒")
 
-            # Debug: 打印流式生成的完整回答
-            logger.debug("=" * 80)
-            logger.debug("💬 LLM流式生成的完整回答:")
-            logger.debug("=" * 80)
-            logger.debug(f"📝 回答长度: {len(full_answer)} 字符")
-            logger.debug(f"💭 完整内容:\n{full_answer}")
-            logger.debug("=" * 80)
+            # Debug: 打印流式生成的完整回答（使用单条日志避免重复）
+            answer_log = (
+                "=" * 80 + "\n" +
+                "💬 LLM流式生成的完整回答:\n" +
+                "=" * 80 + "\n" +
+                f"📝 回答长度: {len(full_answer)} 字符\n" +
+                f"💭 完整内容:\n{full_answer}\n" +
+                "=" * 80
+            )
+            logger.debug(answer_log)
 
             # 第4步：发送完成状态
             stats = {
