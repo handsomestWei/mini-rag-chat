@@ -6,11 +6,9 @@
 
 import os
 import re
-import logging
 from typing import Dict, Optional, List
 from pathlib import Path
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class IntentClassifier:

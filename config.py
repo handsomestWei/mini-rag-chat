@@ -290,7 +290,14 @@ ERROR_NO_RESPONSE = "服务正忙，请稍后再试"
 # - 开发/调试环境: LOG_LEVEL = "DEBUG"  （可查看所有细节）
 # - 生产环境:       LOG_LEVEL = "INFO"   （性能更好，日志更简洁）
 LOG_LEVEL = "DEBUG"  # DEBUG, INFO, WARNING, ERROR
-LOG_FILE = "./app.log"
+LOG_PATH = "log"  # 日志输出目录
+
+# ========== 日志管理配置 ==========
+# 日志轮转配置
+LOG_MAX_SIZE_MB = 10              # 单个日志文件最大大小（MB）
+LOG_BACKUP_COUNT = 5              # 保留的备份文件数量
+LOG_DAILY_BACKUP_COUNT = 7        # 每日日志保留天数
+LOG_MAX_AGE_DAYS = 7             # 日志文件最大保留天数（自动清理）
 
 # ========== 意图识别配置 ==========
 # 启用意图识别功能（优化RAG调用）

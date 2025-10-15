@@ -20,16 +20,11 @@ from module.chat_handler import ChatHandler
 from module.concurrency_limiter import init_limiter, get_limiter
 from module.rate_limiter import init_rate_limiter, bot_detection_required, get_client_info
 
-# 配置日志（添加线程信息）
-logging.basicConfig(
-    level=getattr(logging, config.LOG_LEVEL),
-    format='%(asctime)s - [%(threadName)s-%(thread)d] - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(config.LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# 配置日志（使用 loguru 提供更好的日志管理）
+from module.log_manager import setup_logging
+
+# 设置日志系统
+log_manager, logger = setup_logging(config)
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -405,6 +400,8 @@ def pending_documents():
         "count": len(new_docs),
         "documents": doc_list
     })
+
+
 
 
 # 为路由动态应用频率限制

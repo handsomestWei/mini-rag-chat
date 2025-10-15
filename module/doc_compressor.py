@@ -5,12 +5,10 @@
 """
 
 import re
-import logging
 import numpy as np
 from typing import List
 from sklearn.metrics.pairwise import cosine_similarity
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class DocumentCompressor:
@@ -227,9 +225,9 @@ class DocumentCompressor:
             reranked = [sentences[i] for i in top_indices_sorted]
 
             # 记录相似度信息（debug）
-            if logger.isEnabledFor(logging.DEBUG):
-                for idx in top_indices:
-                    logger.debug(f"  - 句子[{idx}]: 相似度={similarities[idx]:.3f}, 内容=\"{sentences[idx][:30]}...\"")
+            # 显示前3个最相关的句子（仅在DEBUG模式下）
+            for idx in top_indices[:3]:
+                logger.debug(f"  - 句子[{idx}]: 相似度={similarities[idx]:.3f}, 内容=\"{sentences[idx][:30]}...\"")
 
             logger.debug(f"m3e重排序完成: 选出 {len(reranked)} 个最相关句子")
             return reranked

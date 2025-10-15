@@ -5,11 +5,9 @@
 结合 Flask-Limiter 和自定义脚本检测
 """
 
-import logging
 from flask import request, jsonify
 from functools import wraps
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def get_real_ip():

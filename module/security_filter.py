@@ -4,10 +4,8 @@
 """
 
 import re
-import logging
 from typing import Tuple, Optional
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class SecurityFilter:

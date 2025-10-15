@@ -5,12 +5,10 @@
 
 import threading
 import time
-import logging
 from queue import Queue, Empty, Full
 from functools import wraps
 from flask import jsonify
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ConcurrencyLimiter:

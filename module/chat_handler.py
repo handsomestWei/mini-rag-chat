@@ -4,14 +4,12 @@
 """
 
 import time
-import logging
 import psutil
 import os
 import json
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class StreamingCallbackHandler(BaseCallbackHandler):

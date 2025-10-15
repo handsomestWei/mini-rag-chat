@@ -6,13 +6,11 @@ RAG管理模块
 import os
 import glob
 import shutil
-import logging
 from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.vectorstores import FAISS
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class RAGManager:
