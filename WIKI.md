@@ -280,7 +280,7 @@ RETRIEVER_FETCH_K = 20    # 预筛选20个候选
 SEARCH_TYPE = "similarity"  # "similarity" 或 "mmr"
 ```
 
-### 文档压缩配置（新增）⭐
+### 文档压缩配置
 
 ```python
 # 启用文档压缩（压缩检索到的文档，减少LLM上下文）
