@@ -16,7 +16,7 @@
 
 ### 🎯 全链路 RAG 优化
 
-本项目实现了从数据准备到最终输出的完整 RAG 优化流程：
+实现了从数据准备到最终输出的完整 RAG 优化流程：
 
 #### 1. 知识库数据清洗（离线优化）
 - **工具**：`tool/clean_text.py`
@@ -26,7 +26,7 @@
 #### 2. 智能意图识别（查询前优化）
 - **模块**：`module/intent_classifier.py`（可选）
 - **技术**：基于 m3e-small 微调轻量级分类器
-- **优化**：识别 6 种意图，简单查询（问候/礼貌/闲聊）直接回复，跳过 RAG
+- **优化**：识别多种意图，简单查询（问候/礼貌/闲聊）直接回复，跳过 RAG
 - **效果**：83% 查询跳过 RAG，资源节省 80%+，响应时间 <50ms
 
 #### 3. 查询扩展（检索前优化）
@@ -47,9 +47,7 @@
 #### 6. 流式生成与输出
 - **技术**：Qwen2-1.5B + SSE 流式传输
 - **优化**：逐字显示 AI 回答，实时状态反馈
-- **效果**：首字响应时间缩短 80%（3-5秒 → 0.5-1秒）
-
-**📊 端到端优化效果**：总耗时从 4.0 秒降至 1.8 秒（**提升 55%**）
+- **效果**：首字响应时间缩短
 
 ### 🚀 低配置优化
 - **2核4G CPU 即可运行**，无需GPU
@@ -95,35 +93,11 @@
 - **质量评估工具**（`evaluate_quality.py`）：评估RAG效果
 - 完整的日志和监控
 
-
----
-
-## 💻 系统要求
-
-### 最低配置
-- **CPU**: 2核心
-- **内存**: 4GB RAM
-- **存储**: 10GB 可用空间
-- **操作系统**: Windows / Linux / macOS
-- **Python**: 3.8+
-
-### 推荐配置
-- **CPU**: 4核心
-- **内存**: 8GB RAM
-- **存储**: 20GB SSD
-
 ---
 
 ## 🚀 快速开始
 
-### 1️⃣ 克隆项目
-
-```bash
-git clone https://github.com/yourusername/mini-rag-chat.git
-cd mini-rag-chat
-```
-
-### 2️⃣ 安装依赖
+### 安装依赖
 
 ```bash
 # 官方源（国外）
@@ -145,11 +119,11 @@ pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 pip config set install.trusted-host mirrors.aliyun.com
 ```
 
-### 3️⃣ 下载模型
+### 下载模型
 
 详见 [WIKI.md](WIKI.md#-模型下载) 章节
 
-### 4️⃣ 准备意图分类器（可选）
+### 准备意图分类器（可选）
 
 如需使用智能意图识别功能优化RAG性能：
 
@@ -182,7 +156,7 @@ cp -r intent_fine_tuning/model/intent-classifier/* model/intent-classifier/
 
 详细说明见：[intent_fine_tuning/README.md](intent_fine_tuning/README.md)
 
-### 5️⃣ 准备数据
+### 准备数据
 
 将你的文档（PDF或TXT）放入 `data/` 目录：
 
@@ -193,7 +167,7 @@ data/
   └── document3.txt
 ```
 
-### 6️⃣ 启动服务
+### 启动服务
 
 ```bash
 python app.py
@@ -201,7 +175,7 @@ python app.py
 
 服务将在 `http://localhost:5000` 启动
 
-### 7️⃣ 开始对话
+### 开始对话
 
 在浏览器打开 `http://localhost:5000`，即可开始对话！
 
