@@ -1,0 +1,354 @@
+# Mini RAG Chat 配置文件
+
+# ========== 嵌入模型配置 ==========
+embedding:
+  model_path: "./model/moka-ai/m3e-small"
+  device: "cpu"  # cpu 或 cuda:0
+  batch_size: 10  # m3e-small优化配置
+
+# ========== 向量数据库配置 ==========
+vector_store:
+  path: "./vector_store"
+  retriever_k: 2  # 返回最相关的文档数量
+  retriever_fetch_k: 20  # 预筛选的文档数量
+  search_type: "similarity"  # similarity, mmr, similarity_score_threshold
+  score_threshold: 0.5  # 仅在similarity_score_threshold模式下使用
+  mmr_diversity_score: 0.5  # MMR多样性分数
+
+# ========== 文档处理配置 ==========
+document:
+  data_path: "./data/"
+  data_new_path: "./data_new/"
+  chunk_size: 800  # 文档切片大小（字符数）
+  chunk_overlap: 150  # 重叠字符数
+  enable_incremental_load: true
+  auto_migrate_processed: true
+
+# ========== LLM配置 ==========
+# 模型服务商类型: "ollama" 或 "online" (如硅基流动、DeepSeek等)
+provider: "online"  # ollama: 本地Ollama服务, online: 线上API服务
+
+# Ollama配置（当 provider="ollama" 时使用）
+ollama:
+  model: "OxW/Qwen3-0.6B-GGUF:latest"  # Ollama模型名称
+  base_url: "http://localhost:11434"  # 支持环境变量覆盖
+  #base_url: "http://ollama:11434"  # Docker环境
+  num_ctx: 1024  # 上下文窗口
+  num_thread: 4  # CPU线程数
+  num_predict: 1000  # 最大生成token数
+  temperature: 0.2  # 温度
+  top_k: 40  # Top-K采样
+  top_p: 0.9  # Top-P采样
+  repeat_penalty: 1.3  # 重复惩罚
+
+# 线上API服务配置（当 provider="online" 时使用）
+online:
+  # 服务商类型: "siliconflow" (硅基流动), "deepseek", "openai", "custom"
+  service: "siliconflow"
+  # 服务商API地址
+  base_url: "https://api.siliconflow.cn/v1"  # 硅基流动API地址
+  # API密钥（支持环境变量覆盖，建议使用环境变量）
+  api_key: "your_api_key"  # 留空则从环境变量 OLLAMA_API_KEY 或 ONLINE_API_KEY 读取
+  # 模型名称（根据服务商选择）
+  model: "Qwen/Qwen3-8B"
+  # 其他参数
+  temperature: 0.2  # 温度
+  max_tokens: 1000  # 最大生成token数
+  top_p: 0.9  # Top-P采样
+
+# 超时配置（秒，适用于所有服务商）
+timeout:
+  request_timeout: 10  # HTTP请求超时（连接和读取超时）
+  response_timeout: 60  # 响应等待超时（LLM生成回答的最大等待时间）
+
+# ========== 提示词配置 ==========
+prompt:
+  system_prompt: |
+    你是一个专业的中文宠物狗知识助手。你的任务是基于提供的参考资料回答问题。
+
+    回答要求：
+    1. 必须使用中文回答
+    2. 详细全面地回答用户问题，包含具体的信息、要点和说明
+    3. 不要使用"参考资料中提到..."、"根据参考资料..."、"资料显示..."等分析性描述
+    4. 直接将参考资料中的信息整合成详细的答案，就像是你自己的知识一样
+    5. 回答要结构清晰，分段说明不同方面，每个要点都要详细展开
+    6. 如果参考资料中有多个相关要点，要逐一详细说明，不要遗漏
+    7. 回答要连贯流畅，段落分明，不要重复相同内容
+    8. 如果参考资料中没有相关信息，直接说"无法回答此问题"
+
+    重要提示：
+    - 不要提及"参考资料"、"资料"等词汇，直接给出答案
+    - 回答要详细全面，至少包含多个段落，每个要点都要充分展开说明
+    - 结构清晰，使用适当的分段和要点来组织内容
+    - 确保回答的完整性和详细程度
+
+  user_question_template: |
+    参考资料：
+    {context}
+
+    问题：{question}
+
+    请基于以上参考资料详细回答。要求：
+    1. 详细全面地回答问题，包含具体信息和要点说明
+    2. 直接给出答案，不要使用"参考资料中提到..."等描述性语句
+    3. 将参考资料中的信息自然地融入详细答案中
+    4. 回答要结构清晰，分段说明，每个要点都要充分展开
+    5. 如果参考资料中有多个相关信息，要逐一详细说明
+
+    请详细回答：
+
+# ========== 查询优化配置 ==========
+query:
+  enable_expansion: true
+  expansion_template: |
+    将用户问题改写为3-5个中文关键词，用空格或逗号分隔。
+
+    用户问题：{question}
+
+    检索关键词（只输出中文关键词，不要序号、不要解释、不要英文）：
+
+# ========== 文档压缩配置 ==========
+compression:
+  enable: true
+  max_sentences_per_doc: 3  # 每个文档保留的最大句子数
+  min_sentence_length: 5  # 最小句子长度（字符数）
+  method: "hybrid"  # hybrid, m3e, textrank
+
+# ========== Flask配置 ==========
+flask:
+  debug_mode: true
+  host: "0.0.0.0"
+  port: 5000
+
+# ========== http请求并发控制配置 ==========
+concurrency:
+  max_concurrent_requests: 4
+  max_queue_size: 4
+  request_timeout: 60  # 秒
+  enable_limit: true
+  limit_message: "当前服务繁忙，请稍后再试"
+  queue_full_message: "请求队列已满，请稍后重试"
+
+# ========== http请求频率限制配置 ==========
+rate_limit:
+  enable: true
+  default: "60 per minute"
+  chat:
+    - "5 per minute"
+  health: "5 per minute"
+  stats: "5 per minute"
+  storage: "memory"  # memory 或 redis
+  redis_url: "redis://localhost:6379/0"
+  message: "请求过于频繁，请稍后再试"
+  headers_enabled: true
+  strategy: "fixed-window"  # fixed-window 或 moving-window
+
+# ========== 安全配置 ==========
+security:
+  trust_proxy_headers: true
+  enable_bot_detection: true
+  suspicious_user_agents:
+    - "bot"
+    - "crawler"
+    - "spider"
+    - "scraper"
+    - "curl"
+    - "wget"
+    - "python-requests"
+    - "python-urllib"
+    - "java"
+    - "go-http-client"
+    - "postman"
+    - "insomnia"
+    - "httpie"
+  whitelisted_user_agents:
+    - "googlebot"
+    - "bingbot"
+    - "baiduspider"
+  block_empty_user_agent: true
+  check_referer: false
+  max_input_length: 100
+  enable_input_truncation: true
+  enable_security_filter: true
+  blocked_messages:
+    - "系统提示词"
+    - "system prompt"
+    - "system_prompt"
+    - "模型"
+    - "model"
+    - "模型信息"
+    - "model info"
+    - "model_info"
+    - "知识库"
+    - "knowledge base"
+    - "knowledge_base"
+    - "向量库"
+    - "vector store"
+    - "vector_store"
+    - "embedding"
+    - "嵌入"
+    - "embeddings"
+    - "检索"
+    - "retrieval"
+    - "retrieve"
+    - "文档"
+    - "documents"
+    - "docs"
+    - "原始数据"
+    - "raw data"
+    - "source"
+    - "提示词"
+    - "prompt"
+    - "template"
+    - "配置"
+    - "config"
+    - "configuration"
+    - "什么模型"
+    - "which model"
+    - "什么技术"
+    - "what technology"
+  security_response_template: "抱歉，我无法回答关于系统技术细节的问题。请问您有什么其他需要帮助的吗？"
+
+# ========== Web界面配置 ==========
+web:
+  app_title: "智能问答助手"
+  app_subtitle: "基于 RAG 的知识问答系统"
+  header_icon: "💬"
+  user_icon: "👤"
+  ai_icon: "🤖"
+  welcome_title: "👋 欢迎使用智能问答助手"
+  welcome_message: "我可以根据知识库内容回答您的问题"
+  welcome_hint: "请在下方输入您的问题开始咨询"
+  primary_color: "#667eea"
+  secondary_color: "#764ba2"
+  accent_color: "#f093fb"
+  accent_secondary: "#f5576c"
+  enable_streaming: true
+  # 页脚配置
+  footer_enable: true
+  footer_text: "由"
+  footer_tech_provider: "百度"
+  footer_tech_url: "https://www.baidu.com"
+  footer_suffix: "提供技术支持"
+
+# ========== 性能优化配置 ==========
+performance:
+  preload_vector_store: true
+  show_progress_bar: true
+  enable_memory_monitor: true
+  memory_warning_threshold: 85  # 内存使用率警告阈值(%)
+
+# ========== 流式输出状态消息配置 ==========
+stream:
+  status_retrieving: "正在检索相关文档..."
+  status_generating: "正在生成回答..."
+
+# ========== 错误消息配置 ==========
+error:
+  no_response: "服务正忙，请稍后再试"
+
+# ========== 日志配置 ==========
+logging:
+  level: "DEBUG"  # DEBUG, INFO, WARNING, ERROR
+  path: "log"
+  max_size_mb: 10
+  backup_count: 5
+  daily_backup_count: 7
+  max_age_days: 7
+
+# ========== 意图识别配置 ==========
+intent:
+  enable_classification: true
+  model_path: "./model/intent-classifier"
+  ml_min_confidence: 0.7
+  rules:
+    greeting:
+      - "^(你好|您好|hi|hello|hey|早上好|下午好|晚上好|嗨)[！!。.～~]*$"
+      - "^(在吗|在不在|有人吗)[？?]*$"
+    politeness:
+      - "^(谢谢|感谢|多谢|thanks|thank you)[！!。.～~]*$"
+      - "^(再见|拜拜|bye|goodbye|see you)[！!。.～~]*$"
+      - "^(不用了|不需要|没事)[。.！!]*$"
+    system:
+      - ".*(系统提示|提示词|prompt|system prompt).*"
+      - ".*(模型|model|技术栈|技术细节|architecture).*"
+      - ".*(知识库|向量库|数据库|database).*"
+      - ".*(你是.*模型|什么模型|which model|哪个模型).*"
+    unknown:
+      - "^(嗯|啊|哦|呃|额|这个|那个|嘛)[。.！!？?～~]*$"
+      - "^[？?]+$"
+      - "^[。.！!]+$"
+  keywords:
+    greeting:
+      - "你好"
+      - "您好"
+      - "hi"
+      - "hello"
+      - "hey"
+      - "早上好"
+      - "下午好"
+      - "晚上好"
+      - "在吗"
+      - "在不在"
+      - "有人吗"
+      - "嗨"
+    politeness:
+      - "谢谢"
+      - "感谢"
+      - "多谢"
+      - "thanks"
+      - "thank you"
+      - "再见"
+      - "拜拜"
+      - "bye"
+      - "goodbye"
+      - "see you"
+      - "不用了"
+      - "不需要"
+      - "没事"
+    system:
+      - "系统提示"
+      - "提示词"
+      - "prompt"
+      - "system prompt"
+      - "模型"
+      - "model"
+      - "技术栈"
+      - "技术细节"
+      - "architecture"
+      - "知识库"
+      - "向量库"
+      - "数据库"
+      - "database"
+      - "什么模型"
+      - "哪个模型"
+      - "which model"
+    unknown:
+      - "嗯"
+      - "啊"
+      - "哦"
+      - "呃"
+      - "额"
+      - "这个"
+      - "那个"
+      - "嘛"
+  responses:
+    greeting:
+      skip_rag: true
+      response: "你好！我是智能问答助手，有什么可以帮助您的吗？"
+    politeness:
+      skip_rag: true
+      response: "不客气！如有其他问题，随时提问。"
+    system:
+      skip_rag: true
+      response: "抱歉，我无法回答关于系统技术细节的问题。请询问知识库相关的内容。"
+    chitchat:
+      skip_rag: true
+      response: "抱歉，我是专业的知识问答助手，暂时无法回答时间、天气等闲聊问题。请询问知识库相关的内容。"
+    knowledge:
+      skip_rag: false
+      response: null
+    unknown:
+      skip_rag: true
+      response: "抱歉，我还不能理解您的问题，请补充完善您的提问。"
+
