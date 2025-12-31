@@ -260,14 +260,20 @@ class ChatHandler:
                            f"方法: {intent_result['method']})")
 
                 # 如果可以跳过RAG，直接返回预定义回复
-                if intent_result['skip_rag'] and intent_result['response']:
-                    logger.info(f"跳过RAG，直接返回预定义回复")
+                if intent_result.get('skip_rag', False):
+                    response_text = intent_result.get('response')
+                    if not response_text:
+                        # 如果配置中没有response，使用默认消息
+                        response_text = "抱歉，我暂时无法回答这个问题"
+                        logger.warning(f"意图 {intent_result['intent']} 配置了 skip_rag=True 但没有 response，使用默认回复")
+                    
+                    logger.info(f"跳过RAG，直接返回预定义回复: {intent_result['intent']}")
                     total_time = time.time() - start_time
 
-                    # 发送完整回复
+                    # 发送完整回复（一次性发送，保持原有逻辑）
                     yield {
                         "type": "token",
-                        "content": intent_result['response']
+                        "content": response_text
                     }
 
                     # 发送完成信号
@@ -376,14 +382,31 @@ class ChatHandler:
             # 需要访问原始 LLM 对象
             llm = self.chain.combine_docs_chain.llm_chain.llm
 
-            # 流式生成
+            # 流式生成，保留所有输出（包括思维链）
             full_answer = ""
+            
             for chunk in llm.stream(full_prompt):
-                if chunk:
-                    full_answer += chunk
+                if not chunk:
+                    continue
+                
+                # 处理不同LLM返回类型：Ollama返回str，ChatOpenAI返回AIMessageChunk
+                if hasattr(chunk, 'content'):
+                    # ChatOpenAI 返回 AIMessageChunk 对象
+                    chunk_content = chunk.content
+                elif isinstance(chunk, str):
+                    # Ollama 返回字符串
+                    chunk_content = chunk
+                else:
+                    # 其他情况，尝试转换为字符串
+                    chunk_content = str(chunk)
+                
+                if chunk_content:
+                    full_answer += chunk_content
+                    
+                    # 直接输出所有内容，不过滤思维链
                     yield {
                         "type": "token",
-                        "content": chunk
+                        "content": chunk_content
                     }
 
             llm_time = time.time() - llm_start

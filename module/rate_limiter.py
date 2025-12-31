@@ -23,9 +23,10 @@ def get_real_ip():
         str: 客户端IP地址
     """
     # 如果配置信任代理头
-    from config import TRUST_PROXY_HEADERS
-
-    if TRUST_PROXY_HEADERS:
+    from config_loader import load_config
+    config = load_config()
+    
+    if config.TRUST_PROXY_HEADERS:
         # 1. 优先从 X-Forwarded-For 获取（可能包含多个IP，取第一个）
         forwarded_for = request.headers.get('X-Forwarded-For')
         if forwarded_for:
@@ -54,38 +55,33 @@ def check_bot_detection():
     Returns:
         tuple: (is_suspicious, reason)
     """
-    from config import (
-        ENABLE_BOT_DETECTION,
-        SUSPICIOUS_USER_AGENTS,
-        WHITELISTED_USER_AGENTS,
-        BLOCK_EMPTY_USER_AGENT,
-        CHECK_REFERER
-    )
-
-    if not ENABLE_BOT_DETECTION:
+    from config_loader import load_config
+    config = load_config()
+    
+    if not config.ENABLE_BOT_DETECTION:
         return False, None
 
     user_agent = request.headers.get('User-Agent', '').lower()
 
     # 1. 检查空User-Agent
-    if BLOCK_EMPTY_USER_AGENT and not user_agent:
+    if config.BLOCK_EMPTY_USER_AGENT and not user_agent:
         logger.warning(f"检测到空User-Agent请求: {request.remote_addr} - {request.path}")
         return True, "缺少User-Agent"
 
     # 2. 检查是否在白名单中（搜索引擎爬虫等）
-    for whitelist in WHITELISTED_USER_AGENTS:
+    for whitelist in config.WHITELISTED_USER_AGENTS:
         if whitelist.lower() in user_agent:
             logger.debug(f"白名单User-Agent: {user_agent}")
             return False, None
 
     # 3. 检查可疑User-Agent
-    for suspicious in SUSPICIOUS_USER_AGENTS:
+    for suspicious in config.SUSPICIOUS_USER_AGENTS:
         if suspicious.lower() in user_agent:
             logger.warning(f"检测到可疑User-Agent: {user_agent} from {request.remote_addr}")
             return True, f"可疑的User-Agent"
 
     # 4. 可选：检查Referer（可能误伤，谨慎启用）
-    if CHECK_REFERER and request.path != '/' and request.method == 'POST':
+    if config.CHECK_REFERER and request.path != '/' and request.method == 'POST':
         referer = request.headers.get('Referer', '')
         if not referer:
             logger.warning(f"POST请求缺少Referer: {request.remote_addr} - {request.path}")

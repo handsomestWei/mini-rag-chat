@@ -308,10 +308,13 @@ class IntentClassifier:
         if ml_result:
             # 只有当置信度足够高且不是knowledge时才使用ML结果
             min_confidence = getattr(self.config, 'INTENT_ML_MIN_CONFIDENCE', 0.7)
-            if ml_result['confidence'] >= min_confidence and ml_result['intent'] != 'knowledge':
+            ml_intent = ml_result['intent']
+            ml_confidence = ml_result['confidence']
+            
+            if ml_confidence >= min_confidence and ml_intent != 'knowledge':
                 return self._build_result(
-                    ml_result['intent'],
-                    ml_result['confidence'],
+                    ml_intent,
+                    ml_confidence,
                     "ml",
                     ml_response=ml_result.get('response')
                 )
@@ -336,21 +339,46 @@ class IntentClassifier:
         """
         # 从配置中获取意图响应配置
         intent_responses = getattr(self.config, 'INTENT_RESPONSES', self._get_default_intent_config())
-
-        config = intent_responses.get(intent, intent_responses.get("knowledge", {
-            "skip_rag": False,
-            "response": None
-        }))
-
-        # 如果ML模型提供了回复，使用ML的回复
-        if ml_response:
-            config["response"] = ml_response
+        
+        # 确保 intent_responses 是字典类型
+        if not isinstance(intent_responses, dict):
+            logger.warning(f"INTENT_RESPONSES 不是字典类型: {type(intent_responses)}，使用默认配置")
+            intent_responses = self._get_default_intent_config()
+        
+        # 获取对应意图的配置，如果不存在则使用 knowledge 的配置，再不存在则使用默认值
+        # 配置加载器已经将键名标准化为小写，所有来源的意图名称也都是小写
+        if intent in intent_responses:
+            config = intent_responses[intent].copy() if isinstance(intent_responses[intent], dict) else intent_responses[intent]
+        elif "knowledge" in intent_responses:
+            config = intent_responses["knowledge"].copy() if isinstance(intent_responses["knowledge"], dict) else intent_responses["knowledge"]
+        else:
+            config = {
+                "skip_rag": False,
+                "response": None
+            }
+            logger.warning(f"意图 '{intent}' 和 'knowledge' 都未找到，使用默认配置")
+        
+        # 确保 config 是字典类型
+        if not isinstance(config, dict):
+            logger.warning(f"意图 {intent} 的配置不是字典类型: {type(config)}，使用默认配置")
+            config = {
+                "skip_rag": False,
+                "response": None
+            }
+        
+        skip_rag = config.get("skip_rag", False)
+        response = config.get("response")
+        
+        # 优先使用配置文件中的 response
+        # 只有在配置文件中没有 response 时，才使用 ML 模型的回复
+        if not response and ml_response:
+            response = ml_response
 
         return {
             "intent": intent,
             "confidence": confidence,
-            "skip_rag": config["skip_rag"],
-            "response": config["response"],
+            "skip_rag": bool(skip_rag),  # 确保是布尔值
+            "response": response,
             "method": method
         }
 

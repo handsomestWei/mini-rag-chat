@@ -7,13 +7,19 @@ import logging
 import json
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from langchain_community.llms import Ollama
+try:
+    from langchain_community.chat_models import ChatOpenAI
+    CHAT_OPENAI_AVAILABLE = True
+except ImportError:
+    CHAT_OPENAI_AVAILABLE = False
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 
 # 导入配置和模块
-import config
+from config_loader import load_config
+config = load_config(os.getenv("CONFIG_PATH", "/app/config.yaml"))
 from module.rag_manager import RAGManager
 from module.query_expander import QueryExpander
 from module.chat_handler import ChatHandler
@@ -71,20 +77,94 @@ def initialize_system():
     log_memory()
 
     # 3. 加载LLM模型
-    logger.info(f"正在加载 LLM 模型: {config.LLM_MODEL}")
-    logger.info(f"性能参数: ctx={config.OLLAMA_NUM_CTX}, threads={config.OLLAMA_NUM_THREAD}")
+    provider = getattr(config, 'LLM_PROVIDER', 'ollama')
+    logger.info(f"LLM服务商: {provider}")
+    
+    # 获取超时配置
+    request_timeout = getattr(config, 'OLLAMA_REQUEST_TIMEOUT', 120)
+    response_timeout = getattr(config, 'OLLAMA_RESPONSE_TIMEOUT', 300)
+    logger.info(f"超时配置: 请求超时={request_timeout}秒, 响应超时={response_timeout}秒")
 
-    llm = Ollama(
-        model=config.LLM_MODEL,
-        num_ctx=config.OLLAMA_NUM_CTX,
-        num_thread=config.OLLAMA_NUM_THREAD,
-        num_predict=config.OLLAMA_NUM_PREDICT,
-        temperature=config.OLLAMA_TEMPERATURE,
-        top_k=config.OLLAMA_TOP_K,
-        top_p=config.OLLAMA_TOP_P,
-        repeat_penalty=config.OLLAMA_REPEAT_PENALTY
-    )
-    logger.info("LLM 模型加载完成")
+    # 创建带超时的 HTTP 客户端
+    http_client = None
+    try:
+        import httpx
+        timeout = httpx.Timeout(
+            connect=request_timeout,
+            read=response_timeout,
+            write=request_timeout,
+            pool=request_timeout
+        )
+        http_client = httpx.Client(timeout=timeout)
+        logger.debug("使用 httpx 客户端（带超时）")
+    except ImportError:
+        logger.warning("未安装 httpx，无法设置超时，使用默认 HTTP 客户端")
+
+    # 根据提供商类型初始化不同的LLM
+    if provider == "online":
+        if not CHAT_OPENAI_AVAILABLE:
+            raise ImportError("线上API服务需要安装 openai 包: pip install openai")
+        
+        # 使用线上API服务（如硅基流动、DeepSeek等，兼容OpenAI API格式）
+        online_service = getattr(config, 'ONLINE_SERVICE', 'siliconflow')
+        online_base_url = getattr(config, 'ONLINE_BASE_URL', '')
+        online_api_key = getattr(config, 'ONLINE_API_KEY', '')
+        online_model = getattr(config, 'ONLINE_MODEL', 'deepseek-chat')
+        online_temperature = getattr(config, 'ONLINE_TEMPERATURE', 0.2)
+        online_max_tokens = getattr(config, 'ONLINE_MAX_TOKENS', 1000)
+        online_top_p = getattr(config, 'ONLINE_TOP_P', 0.9)
+        
+        if not online_api_key:
+            raise ValueError("线上API服务需要配置 API Key，请在 config.yaml 中设置 online.api_key 或使用环境变量 ONLINE_API_KEY")
+        
+        if not online_base_url:
+            raise ValueError("线上API服务需要配置 base_url，请在 config.yaml 中设置 online.base_url")
+        
+        logger.info(f"使用线上API服务: {online_service}")
+        logger.info(f"API地址: {online_base_url}")
+        logger.info(f"模型: {online_model}")
+        
+        # 使用 ChatOpenAI（兼容OpenAI API格式的服务商）
+        # 注意：ChatOpenAI 返回的是 ChatMessage，需要适配
+        llm = ChatOpenAI(
+            model_name=online_model,
+            openai_api_base=online_base_url,
+            openai_api_key=online_api_key,
+            temperature=online_temperature,
+            max_tokens=online_max_tokens,
+            top_p=online_top_p,
+            timeout=response_timeout,
+            request_timeout=request_timeout,
+            streaming=True  # 支持流式输出
+        )
+        logger.info("线上API LLM 模型加载完成")
+    else:
+        # 使用本地Ollama服务
+        ollama_model = getattr(config, 'LLM_MODEL', 'OxW/Qwen3-0.6B-GGUF:latest')
+        ollama_base_url = getattr(config, 'OLLAMA_BASE_URL', 'http://localhost:11434')
+        logger.info(f"正在加载 Ollama LLM 模型: {ollama_model}")
+        logger.info(f"Ollama服务地址: {ollama_base_url}")
+        logger.info(f"性能参数: ctx={config.OLLAMA_NUM_CTX}, threads={config.OLLAMA_NUM_THREAD}")
+
+        # 初始化 Ollama LLM
+        llm_kwargs = {
+            "base_url": ollama_base_url,
+            "model": ollama_model,
+            "num_ctx": config.OLLAMA_NUM_CTX,
+            "num_thread": config.OLLAMA_NUM_THREAD,
+            "num_predict": config.OLLAMA_NUM_PREDICT,
+            "temperature": config.OLLAMA_TEMPERATURE,
+            "top_k": config.OLLAMA_TOP_K,
+            "top_p": config.OLLAMA_TOP_P,
+            "repeat_penalty": config.OLLAMA_REPEAT_PENALTY,
+        }
+        
+        # 如果 httpx 客户端可用，传递它
+        if http_client:
+            llm_kwargs["client"] = http_client
+        
+        llm = Ollama(**llm_kwargs)
+        logger.info("Ollama LLM 模型加载完成")
 
     # 4. 创建检索器
     retriever_kwargs = {
@@ -189,6 +269,11 @@ def index():
         "accentSecondary": config.WEB_ACCENT_SECONDARY,
         "enableStreaming": config.WEB_ENABLE_STREAMING,
         "errorNoResponse": config.ERROR_NO_RESPONSE,
+        "footerEnable": getattr(config, 'WEB_FOOTER_ENABLE', True),
+        "footerText": getattr(config, 'WEB_FOOTER_TEXT', '由'),
+        "footerTechProvider": getattr(config, 'WEB_FOOTER_TECH_PROVIDER', '百度'),
+        "footerTechUrl": getattr(config, 'WEB_FOOTER_TECH_URL', 'https://www.baidu.com'),
+        "footerSuffix": getattr(config, 'WEB_FOOTER_SUFFIX', '提供技术支持'),
     }
     return render_template("index.html", config=web_config)
 

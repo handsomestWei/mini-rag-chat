@@ -194,9 +194,17 @@ class RAGManager:
         documents = self.load_documents_from_path(self.config.DATA_PATH)
         logger.info(f"已加载 {len(documents)} 个文档")
 
-        # 切分文档
-        text_chunks = self.split_documents(documents)
-        logger.info(f"文档已切分为 {len(text_chunks)} 个块")
+        if len(documents) == 0:
+            logger.warning("⚠️  未找到任何文档，将创建空的向量库")
+            logger.warning(f"💡 请将文档放入目录: {self.config.DATA_PATH}")
+            # 创建一个空向量库（使用一个虚拟文档）
+            from langchain.schema import Document
+            dummy_doc = Document(page_content="初始化向量库", metadata={})
+            text_chunks = [dummy_doc]
+        else:
+            # 切分文档
+            text_chunks = self.split_documents(documents)
+            logger.info(f"文档已切分为 {len(text_chunks)} 个块")
 
         # 创建向量库
         logger.info("正在创建向量库...")
@@ -209,17 +217,28 @@ class RAGManager:
 
     def load_vector_store(self):
         """加载已存在的向量库"""
-        if not os.path.exists(self.config.VECTOR_STORE_PATH):
-            logger.info("向量库不存在，将创建新的向量库")
+        # 确保向量库目录存在
+        Path(self.config.VECTOR_STORE_PATH).mkdir(parents=True, exist_ok=True)
+        
+        # 检查向量库文件是否存在（FAISS需要index.faiss和index.pkl）
+        index_faiss_path = os.path.join(self.config.VECTOR_STORE_PATH, "index.faiss")
+        index_pkl_path = os.path.join(self.config.VECTOR_STORE_PATH, "index.pkl")
+        
+        if not os.path.exists(index_faiss_path) or not os.path.exists(index_pkl_path):
+            logger.info("向量库文件不存在，将创建新的向量库")
             return self.create_vector_store()
 
         logger.info("加载已存在的向量数据库...")
-        self.vector_store = FAISS.load_local(
-            self.config.VECTOR_STORE_PATH,
-            self.embeddings,
-            allow_dangerous_deserialization=True
-        )
-        logger.info("向量数据库加载完成")
+        try:
+            self.vector_store = FAISS.load_local(
+                self.config.VECTOR_STORE_PATH,
+                self.embeddings,
+                allow_dangerous_deserialization=True
+            )
+            logger.info("向量数据库加载完成")
+        except Exception as e:
+            logger.warning(f"加载向量库失败: {str(e)}，将重新创建向量库")
+            return self.create_vector_store()
 
         # 检查是否有新文档需要增量加载
         if self.config.ENABLE_INCREMENTAL_LOAD:

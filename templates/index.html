@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">智能问答助手</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
 
     <!-- 配置数据注入（JSON 格式，不会被格式化器破坏） -->
     <script type="application/json" id="app-config">
@@ -202,6 +204,115 @@
             border: 1px solid #e5e7eb;
         }
 
+        /* Markdown样式 */
+        .content-ai h1,
+        .content-ai h2,
+        .content-ai h3,
+        .content-ai h4,
+        .content-ai h5,
+        .content-ai h6 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .content-ai h1 {
+            font-size: 1.5em;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.3em;
+        }
+
+        .content-ai h2 {
+            font-size: 1.3em;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.3em;
+        }
+
+        .content-ai h3 {
+            font-size: 1.1em;
+        }
+
+        .content-ai p {
+            margin: 0.8em 0;
+            line-height: 1.7;
+        }
+
+        .content-ai ul,
+        .content-ai ol {
+            margin: 0.8em 0;
+            padding-left: 1.8em;
+        }
+
+        .content-ai li {
+            margin: 0.4em 0;
+            line-height: 1.6;
+        }
+
+        .content-ai strong {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .content-ai em {
+            font-style: italic;
+        }
+
+        .content-ai code {
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        .content-ai pre {
+            background-color: #f3f4f6;
+            padding: 1em;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1em 0;
+        }
+
+        .content-ai pre code {
+            background-color: transparent;
+            padding: 0;
+            color: #333;
+        }
+
+        .content-ai blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 1em;
+            margin: 1em 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        .content-ai hr {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 1.5em 0;
+        }
+
+        .content-ai table {
+            border-collapse: collapse;
+            margin: 1em 0;
+            width: 100%;
+        }
+
+        .content-ai th,
+        .content-ai td {
+            border: 1px solid #e5e7eb;
+            padding: 0.6em 1em;
+            text-align: left;
+        }
+
+        .content-ai th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
         .content-ai.streaming::after {
             content: '▊';
             animation: blink 1s infinite;
@@ -225,6 +336,26 @@
             padding: 24px 30px;
             background: white;
             border-top: 1px solid #e5e7eb;
+        }
+
+        .chat-footer {
+            padding: 12px 30px;
+            background: white;
+            border-top: 1px solid #f3f4f6;
+            text-align: center;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .chat-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .chat-footer a:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
         }
 
         .input-counter {
@@ -348,6 +479,11 @@
                 padding: 20px;
             }
 
+            .chat-footer {
+                padding: 10px 20px;
+                font-size: 11px;
+            }
+
             .chat-input-container {
                 padding: 16px 20px;
             }
@@ -387,6 +523,12 @@
                 <span id="char-count">0</span>/<span id="max-chars">100</span> 字符
             </div>
         </div>
+
+        <div class="chat-footer" id="chat-footer" style="display: none;">
+            <span id="footer-text"></span>
+            <a id="footer-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+            <span id="footer-suffix"></span>
+        </div>
     </div>
 
     <script>
@@ -405,6 +547,18 @@
             document.getElementById('welcome-title').textContent = configData.welcomeTitle;
             document.getElementById('welcome-message').textContent = configData.welcomeMessage;
             document.getElementById('welcome-hint').textContent = configData.welcomeHint;
+
+            // 页脚配置
+            const footer = document.getElementById('chat-footer');
+            if (configData.footerEnable) {
+                footer.style.display = 'block';
+                document.getElementById('footer-text').textContent = configData.footerText || '由';
+                document.getElementById('footer-link').textContent = configData.footerTechProvider || '百度';
+                document.getElementById('footer-link').href = configData.footerTechUrl || 'https://www.baidu.com';
+                document.getElementById('footer-suffix').textContent = configData.footerSuffix || '提供技术支持';
+            } else {
+                footer.style.display = 'none';
+            }
 
             // 主题颜色
             const root = document.documentElement;
@@ -488,7 +642,8 @@
         function updateAIMessage(content) {
             console.log('🔄 更新AI消息:', content.length, '字符');
             if (currentAIMessage) {
-                currentAIMessage.innerHTML = escapeHtml(content);
+                // 使用markdown渲染而不是简单转义
+                currentAIMessage.innerHTML = renderMarkdown(content);
                 scrollToBottom();
                 console.log('✅ 消息更新成功');
             } else {
@@ -528,6 +683,27 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            try {
+                // 配置marked.js选项
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,  // 支持换行
+                        gfm: true,     // GitHub风格markdown
+                        headerIds: false
+                    });
+                    return marked.parse(text);
+                } else {
+                    // 如果marked.js未加载，使用简单的转义
+                    return escapeHtml(text);
+                }
+            } catch (e) {
+                console.error('Markdown渲染错误:', e);
+                return escapeHtml(text);
+            }
         }
 
         async function handleStreamingChat(userInput) {

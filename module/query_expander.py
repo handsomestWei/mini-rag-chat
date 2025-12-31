@@ -43,7 +43,18 @@ class QueryExpander:
             expansion_prompt = self.config.QUERY_EXPANSION_TEMPLATE.format(
                 question=question
             )
-            expanded_query = self.llm.invoke(expansion_prompt)
+            result = self.llm.invoke(expansion_prompt)
+            
+            # 处理不同LLM返回类型：Ollama返回str，ChatOpenAI返回AIMessage
+            if hasattr(result, 'content'):
+                # ChatOpenAI 返回 AIMessage 对象
+                expanded_query = result.content
+            elif isinstance(result, str):
+                # Ollama 返回字符串
+                expanded_query = result
+            else:
+                # 其他情况，尝试转换为字符串
+                expanded_query = str(result)
 
             if not expanded_query or len(expanded_query.strip()) == 0:
                 logger.debug("扩展查询为空，使用原查询")
