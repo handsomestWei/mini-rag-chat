@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Ollama 服务（仅内部网络访问）
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ${OLLAMA_CONTAINER_NAME:-mini-rag-ollama}
+    # 不暴露端口到公网，仅内部网络访问
+    expose:
+      - "${OLLAMA_PORT:-11434}"
+    volumes:
+      - ${OLLAMA_DATA_DIR:-/opt/mini-rag/ollama/data}:/root/.ollama
+      - ${OLLAMA_MODEL_DIR:-/opt/mini-rag/ollama/model}:/root/.ollama/models:ro # 只读挂载本地模型目录到 Ollama 模型路径
+    environment:
+      - OLLAMA_HOST=0.0.0.0 # 容器内监听所有接口（安全，因为使用 expose）
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-http://localhost,http://mini-rag,http://nginx} # 限制访问来源
+    restart: unless-stopped
+    networks:
+      - ${NETWORK_NAME:-rag-network}
+
+  # Mini RAG Chat 服务
+  mini-rag:
+    image: ${MINI_RAG_IMAGE:-mini-rag-chat:latest}
+    container_name: ${MINI_RAG_CONTAINER_NAME:-mini-rag-chat}
+    ports:
+      - "${MINI_RAG_PORT:-127.0.0.1:5000:5000}"  # 只绑定到本地，不暴露到公网
+    volumes:
+      - ${CONFIG_FILE:-/opt/mini-rag/config.yaml}:/app/config.yaml:ro # 配置文件（只读）
+      - ${DATA_DIR:-/opt/mini-rag/data}:/app/data:ro # 知识库数据（只读）
+      - ${DATA_NEW_DIR:-/opt/mini-rag/data_new}:/app/data_new # 新数据目录（读写）
+      - ${VECTOR_STORE_DIR:-/opt/mini-rag/vector_store}:/app/vector_store # 向量存储目录
+      - ${MODEL_DIR:-/opt/mini-rag/model}:/app/model:ro # 模型目录（只读）
+      - ${TEMPLATES_DIR:-/opt/mini-rag/templates}:/app/templates # 前端模板目录（读写，方便修改）
+      - ${LOG_DIR:-/opt/mini-rag/log}:/app/log # 日志目录
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - CONFIG_PATH=${CONFIG_PATH:-/app/config.yaml}
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    networks:
+      - ${NETWORK_NAME:-rag-network}
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  rag-network:
+    name: ${NETWORK_NAME:-rag-network}
+    driver: bridge
