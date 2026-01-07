@@ -12,8 +12,8 @@ ENV PYTHONUNBUFFERED=1
 RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
     sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list 2>/dev/null || \
     (echo "deb https://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
-     echo "deb https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-     echo "deb https://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list)
+    echo "deb https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb https://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list)
 
 # 安装系统依赖（包括编译工具，用于编译 numpy 等需要从源码构建的包）
 RUN apt-get update && apt-get install -y \
@@ -35,14 +35,11 @@ COPY requirements.txt .
 # 安装Python依赖（使用清华镜像源）
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 复制应用代码
-COPY . .
-
-# 创建必要的目录
-RUN mkdir -p /app/data /app/data_new /app/vector_store /app/model /app/templates /app/log
+# 创建必要的目录（代码文件通过挂载方式提供，不在此复制）
+RUN mkdir -p /app/data /app/data_new /app/vector_store /app/model /app/templates /app/log /app/module /app/tool
 
 # 暴露端口
 EXPOSE 5000
 
-# 启动命令
+# 启动命令（代码文件通过docker-compose挂载）
 CMD ["python", "app.py"]

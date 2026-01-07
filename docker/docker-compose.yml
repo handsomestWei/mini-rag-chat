@@ -23,15 +23,22 @@ services:
     image: ${MINI_RAG_IMAGE:-mini-rag-chat:latest}
     container_name: ${MINI_RAG_CONTAINER_NAME:-mini-rag-chat}
     ports:
-      - "${MINI_RAG_PORT:-127.0.0.1:5000:5000}"  # 只绑定到本地，不暴露到公网
+      - "${MINI_RAG_PORT:-127.0.0.1:5000:5000}" # 只绑定到本地，不暴露到公网
     volumes:
+      # 配置文件和数据目录
       - ${CONFIG_FILE:-/opt/mini-rag/config.yaml}:/app/config.yaml:ro # 配置文件（只读）
       - ${DATA_DIR:-/opt/mini-rag/data}:/app/data:ro # 知识库数据（只读）
       - ${DATA_NEW_DIR:-/opt/mini-rag/data_new}:/app/data_new # 新数据目录（读写）
       - ${VECTOR_STORE_DIR:-/opt/mini-rag/vector_store}:/app/vector_store # 向量存储目录
       - ${MODEL_DIR:-/opt/mini-rag/model}:/app/model:ro # 模型目录（只读）
-      - ${TEMPLATES_DIR:-/opt/mini-rag/templates}:/app/templates # 前端模板目录（读写，方便修改）
       - ${LOG_DIR:-/opt/mini-rag/log}:/app/log # 日志目录
+      # 代码文件挂载（开发模式，修改代码无需重新构建镜像）
+      # CODE_DIR 指向项目源代码目录（默认与BASE_DIR相同，即/opt/mini-rag/）
+      - ${CODE_DIR:-/opt/mini-rag}/app.py:/app/app.py:ro # 主应用入口
+      - ${CODE_DIR:-/opt/mini-rag}/config_loader.py:/app/config_loader.py:ro # 配置加载器
+      - ${CODE_DIR:-/opt/mini-rag}/module:/app/module:ro # 核心模块目录
+      - ${CODE_DIR:-/opt/mini-rag}/tool:/app/tool:ro # 工具集目录（可选）
+      - ${TEMPLATES_DIR:-/opt/mini-rag/templates}:/app/templates # 前端模板目录（读写，方便修改）
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
