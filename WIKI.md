@@ -211,7 +211,8 @@ ollama load qwen2-1.5b.tar
 ```
 mini-rag-chat/
 ├── app.py                      # 主应用入口
-├── config.py                   # 配置文件（所有参数集中管理）
+├── config.yaml                 # 配置文件（所有参数集中管理，YAML格式）
+├── config_loader.py            # 配置加载器（读取config.yaml）
 ├── requirements.txt            # Python依赖
 ├── README.md                   # 项目文档
 ├── WIKI.md                     # 详细文档
@@ -254,55 +255,43 @@ mini-rag-chat/
 
 ## ⚙️ 配置说明
 
-主要配置项在 `config.py` 中：
+主要配置项在 `config.yaml` 中（YAML格式，更易读易维护）：
 
 ### 嵌入模型配置
 
-```python
-# 模型路径（支持本地路径或HuggingFace模型名）
-EMBEDDING_MODEL_PATH = "./model/moka-ai/m3e-small"
-
-# 设备配置
-EMBEDDING_DEVICE = "cpu"  # "cpu" 或 "cuda:0"
-
-# 批处理大小（影响速度和内存）
-EMBEDDING_BATCH_SIZE = 10  # 2核4G推荐: 8-12
+```yaml
+embedding:
+  model_path: "./model/moka-ai/m3e-small"
+  device: "cpu"  # cpu 或 cuda:0
+  batch_size: 10  # 2核4G推荐: 8-12
 ```
 
 ### 向量检索配置
 
-```python
-# 检索数量
-RETRIEVER_K = 2           # 返回前2个最相关文档（配合压缩可增加到3-4）
-RETRIEVER_FETCH_K = 20    # 预筛选20个候选
-
-# 检索模式
-SEARCH_TYPE = "similarity"  # "similarity" 或 "mmr"
+```yaml
+vector_store:
+  retriever_k: 2  # 返回前2个最相关文档（配合压缩可增加到3-4）
+  retriever_fetch_k: 20  # 预筛选20个候选
+  search_type: "similarity"  # similarity, mmr, similarity_score_threshold
 ```
 
 ### 文档压缩配置
 
-```python
-# 启用文档压缩（压缩检索到的文档，减少LLM上下文）
-ENABLE_DOC_COMPRESSION = True
-
-# 每个文档保留的最大句子数
-MAX_SENTENCES_PER_DOC = 3  # 推荐3-5句，平衡信息量和压缩率
-
-# 最小句子长度（过滤太短的句子）
-MIN_SENTENCE_LENGTH = 5  # 少于5个字的句子会被过滤
-
-# 压缩方法
-DOC_COMPRESSION_METHOD = "hybrid"  # hybrid | m3e | textrank
+```yaml
+compression:
+  enable: true  # 启用文档压缩（压缩检索到的文档，减少LLM上下文）
+  max_sentences_per_doc: 3  # 每个文档保留的最大句子数（推荐3-5句）
+  min_sentence_length: 5  # 最小句子长度（少于5个字的句子会被过滤）
+  method: "hybrid"  # hybrid, m3e, textrank
 ```
 
 **配置说明**：
-- `ENABLE_DOC_COMPRESSION`: 是否启用文档压缩（推荐开启）
-- `MAX_SENTENCES_PER_DOC`:
+- `compression.enable`: 是否启用文档压缩（推荐开启）
+- `compression.max_sentences_per_doc`:
   - 3句：激进压缩（~75%压缩率，速度优先）
   - 5句：平衡压缩（~60%压缩率，质量优先）
   - 7句：保守压缩（~50%压缩率，信息完整）
-- `DOC_COMPRESSION_METHOD`:
+- `compression.method`:
   - `hybrid`：TextRank初筛 + m3e重排序（推荐，最佳效果）
   - `m3e`：仅m3e重排序（如果没有jieba）
   - `textrank`：仅TextRank（最快，效果一般）
@@ -317,66 +306,127 @@ LLM速度提升: 50%+
 
 ### 文档处理配置
 
-```python
-# 文档路径
-DATA_PATH = "./data/"           # 原始文档
-DATA_NEW_PATH = "./data_new/"   # 增量文档
-
-# 文本切分
-CHUNK_SIZE = 800          # 每块字符数
-CHUNK_OVERLAP = 150       # 重叠字符数
-
-# 增量加载
-ENABLE_INCREMENTAL_LOAD = True    # 启用增量加载
-AUTO_MIGRATE_PROCESSED = True     # 自动迁移已处理文档
+```yaml
+document:
+  data_path: "./data/"  # 原始文档
+  data_new_path: "./data_new/"  # 增量文档
+  chunk_size: 800  # 每块字符数
+  chunk_overlap: 150  # 重叠字符数
+  enable_incremental_load: true  # 启用增量加载
+  auto_migrate_processed: true  # 自动迁移已处理文档
 ```
 
 ### LLM 配置
 
-```python
-# Ollama 模型
-LLM_MODEL = "qwen2:1.5b"  # 推荐: qwen2:1.5b, phi3:mini
+#### 模型服务商选择
 
-# 性能参数
-OLLAMA_NUM_CTX = 1024         # 上下文窗口
-OLLAMA_NUM_THREAD = 4         # CPU线程数（2核推荐2-4）
-OLLAMA_NUM_PREDICT = 200      # 最大生成token数
-OLLAMA_TEMPERATURE = 0.3      # 温度（0-1，越低越保守）
+系统支持两种模型服务方式：
+
+1. **本地模型（Ollama）**：适合有本地部署需求的场景
+2. **在线API服务**：适合追求更高性能或不想维护本地模型的场景
+
+在 `config.yaml` 中通过 `provider` 字段切换：
+
+```yaml
+# 模型服务商类型: "ollama" 或 "online"
+provider: "ollama"  # 或 "online"
+```
+
+#### 本地模型配置（Ollama）
+
+```yaml
+provider: "ollama"
+
+ollama:
+  model: "qwen2:1.5b"  # Ollama模型名称，推荐: qwen2:1.5b, phi3:mini
+  base_url: "http://localhost:11434"  # Ollama服务地址
+  num_ctx: 1024  # 上下文窗口
+  num_thread: 4  # CPU线程数（2核推荐2-4）
+  num_predict: 1000  # 最大生成token数
+  temperature: 0.2  # 温度（0-1，越低越保守）
+  top_k: 40  # Top-K采样
+  top_p: 0.9  # Top-P采样
+  repeat_penalty: 1.3  # 重复惩罚
+```
+
+#### 在线API服务配置
+
+支持多种兼容 OpenAI API 格式的服务商：
+
+- **硅基流动（SiliconFlow）**：国内高速，推荐⭐
+- **DeepSeek**：性价比高
+- **OpenAI**：官方服务
+- **自定义服务**：任何兼容 OpenAI API 的服务
+
+```yaml
+provider: "online"
+
+online:
+  # 服务商类型: "siliconflow", "deepseek", "openai", "custom"
+  service: "siliconflow"
+  # API地址
+  base_url: "https://api.siliconflow.cn/v1"  # 硅基流动API地址
+  # API密钥（建议使用环境变量 ONLINE_API_KEY，更安全）
+  api_key: "your_api_key"  # 或通过环境变量设置
+  # 模型名称（根据服务商选择）
+  model: "Qwen/Qwen3-8B"  # 硅基流动模型
+  # 其他参数
+  temperature: 0.2  # 温度
+  max_tokens: 1000  # 最大生成token数
+  top_p: 0.9  # Top-P采样
+```
+
+**环境变量配置（推荐）**：
+
+```bash
+# Linux/macOS
+export ONLINE_API_KEY="your_api_key_here"
+
+# Windows (PowerShell)
+$env:ONLINE_API_KEY="your_api_key_here"
+```
+
+**超时配置**（适用于所有服务商）：
+
+```yaml
+timeout:
+  request_timeout: 10  # HTTP请求超时（连接和读取超时，秒）
+  response_timeout: 60  # 响应等待超时（LLM生成回答的最大等待时间，秒）
 ```
 
 ### 提示词配置
 
-```python
-# 系统提示词
-SYSTEM_PROMPT = """你是宠物狗知识助手，必须用中文回答。
-
-根据参考资料回答问题：
-- 积极使用参考资料中的信息
-- 可以总结和概括多段内容
-- 不编造不存在的信息
-- 简洁明了，150字以内"""
-
-# 用户问题模板
-USER_QUESTION_TEMPLATE = """参考资料：
-{context}
-
-问题：{question}"""
+```yaml
+prompt:
+  system_prompt: |
+    你是一个专业的中文宠物狗知识助手。你的任务是基于提供的参考资料回答问题。
+    
+    回答要求：
+    1. 必须使用中文回答
+    2. 详细全面地回答用户问题，包含具体的信息、要点和说明
+    3. 不要使用"参考资料中提到..."、"根据参考资料..."等分析性描述
+    4. 直接将参考资料中的信息整合成详细的答案
+    5. 回答要结构清晰，分段说明不同方面
+    
+  user_question_template: |
+    参考资料：
+    {context}
+    
+    问题：{question}
+    
+    请基于以上参考资料详细回答。
 ```
 
 ### 并发控制配置
 
-```python
-# 并发限制（2核4G推荐配置）
-MAX_CONCURRENT_REQUESTS = 2  # 同时处理的最大请求数
-MAX_QUEUE_SIZE = 3           # 等待队列大小（0=禁用队列）
-REQUEST_TIMEOUT = 60         # 单个请求最大处理时间（秒）
-
-# 是否启用并发限制（推荐开启）
-ENABLE_CONCURRENCY_LIMIT = True
-
-# 拒绝请求时的提示消息
-CONCURRENCY_LIMIT_MESSAGE = "当前服务繁忙，请稍后再试"
-QUEUE_FULL_MESSAGE = "请求队列已满，请稍后重试"
+```yaml
+concurrency:
+  max_concurrent_requests: 2  # 同时处理的最大请求数（2核4G推荐配置）
+  max_queue_size: 3  # 等待队列大小（0=禁用队列）
+  request_timeout: 60  # 单个请求最大处理时间（秒）
+  enable_limit: true  # 是否启用并发限制（推荐开启）
+  limit_message: "当前服务繁忙，请稍后再试"
+  queue_full_message: "请求队列已满，请稍后重试"
 ```
 
 **配置说明**：
@@ -386,28 +436,27 @@ QUEUE_FULL_MESSAGE = "请求队列已满，请稍后重试"
 
 ### 安全配置
 
-```python
-# 输入长度限制
-MAX_INPUT_LENGTH = 100  # 最大输入字符数
-ENABLE_INPUT_TRUNCATION = True  # 是否启用输入截断（True=截断，False=拒绝）
-
-# 对话安全防护
-ENABLE_SECURITY_FILTER = True  # 是否启用安全过滤器
-SECURITY_BLOCKED_MESSAGES = [
-    "系统提示词", "system prompt", "system_prompt",
-    "模型", "model", "模型信息", "model info", "model_info",
-    "知识库", "knowledge base", "knowledge_base",
-    "向量库", "vector store", "vector_store",
-    "embedding", "嵌入", "embeddings",
-    "检索", "retrieval", "retrieve",
-    "文档", "documents", "docs",
-    "原始数据", "raw data", "source",
-    "提示词", "prompt", "template",
-    "配置", "config", "configuration",
-    "什么模型", "which model", "什么技术", "what technology"
-]  # 敏感关键词列表
-
-SECURITY_RESPONSE_TEMPLATE = "抱歉，我无法回答关于系统技术细节的问题。请问您有什么其他需要帮助的吗？"
+```yaml
+security:
+  # 输入长度限制
+  max_input_length: 100  # 最大输入字符数
+  enable_input_truncation: true  # 是否启用输入截断（true=截断，false=拒绝）
+  
+  # 对话安全防护
+  enable_security_filter: true  # 是否启用安全过滤器
+  blocked_keywords:
+    - "系统提示词"
+    - "system prompt"
+    - "system_prompt"
+    - "模型"
+    - "model"
+    - "知识库"
+    - "knowledge base"
+    - "向量库"
+    - "vector store"
+    # ... 更多敏感关键词
+  
+  response_template: "抱歉，我无法回答关于系统技术细节的问题。请问您有什么其他需要帮助的吗？"
 ```
 
 **配置说明**：
@@ -418,23 +467,28 @@ SECURITY_RESPONSE_TEMPLATE = "抱歉，我无法回答关于系统技术细节�
 
 ### 流式输出配置
 
-```python
-# Web界面配置
-WEB_ENABLE_STREAMING = True  # 启用流式输出（推荐）
-
-# 页面自定义（可选）
-WEB_APP_TITLE = "智能问答助手"
-WEB_APP_SUBTITLE = "基于 RAG 的知识问答系统"
-WEB_HEADER_ICON = "💬"
-WEB_USER_ICON = "👤"
-WEB_AI_ICON = "🤖"
-
-# 流式输出状态消息配置
-STREAM_STATUS_RETRIEVING = "正在检索相关文档..."
-STREAM_STATUS_GENERATING = "正在生成回答..."
-
-# 错误消息配置
-ERROR_NO_RESPONSE = "服务正忙，请稍后再试"
+```yaml
+web:
+  enable_streaming: true  # 启用流式输出（推荐）
+  app_title: "智能问答助手"
+  app_subtitle: "基于 RAG 的知识问答系统"
+  header_icon: "💬"
+  user_icon: "👤"
+  ai_icon: "🤖"
+  
+  # 流式输出状态消息
+  stream_status_retrieving: "正在检索相关文档..."
+  stream_status_generating: "正在生成回答..."
+  
+  # 错误消息
+  error_no_response: "服务正忙，请稍后再试"
+  
+  # 页脚配置
+  footer_enable: true
+  footer_text: "由"
+  footer_tech_provider: "百度"
+  footer_tech_url: "https://www.baidu.com"
+  footer_suffix: "提供技术支持"
 ```
 
 ---
@@ -986,20 +1040,21 @@ m3e语义重排序(3个句子) ← 基于语义相似度，精准选择
 ### ⚙️ 压缩配置
 
 #### 基础配置
-```python
-# config.py
+```yaml
+# config.yaml
 
-# 启用文档压缩
-ENABLE_DOC_COMPRESSION = True
-
-# 每个文档保留的句子数
-MAX_SENTENCES_PER_DOC = 3  # 推荐3-5句
-
-# 最小句子长度
-MIN_SENTENCE_LENGTH = 5  # 过滤<5字的句子
-
-# 压缩方法
-DOC_COMPRESSION_METHOD = "hybrid"  # hybrid | m3e | textrank
+compression:
+  # 启用文档压缩
+  enable: true
+  
+  # 每个文档保留的句子数
+  max_sentences_per_doc: 3  # 推荐3-5句
+  
+  # 最小句子长度
+  min_sentence_length: 5  # 过滤<5字的句子
+  
+  # 压缩方法
+  method: "hybrid"  # hybrid, m3e, textrank
 ```
 
 #### 压缩强度调整
@@ -1089,12 +1144,14 @@ INFO - 文档压缩完成 (耗时: 0.095秒)
 
 #### 1. 根据文档特点调整
 
-```python
+```yaml
 # 文档本身就很简洁（<300字）
-MAX_SENTENCES_PER_DOC = 5  # 保留更多
+compression:
+  max_sentences_per_doc: 5  # 保留更多
 
 # 文档冗长（>1000字）
-MAX_SENTENCES_PER_DOC = 3  # 激进压缩
+compression:
+  max_sentences_per_doc: 3  # 激进压缩
 ```
 
 #### 2. 监控压缩率
@@ -1105,19 +1162,21 @@ INFO - 文档压缩完成: 1599字 → 388字 (总压缩率: 75.7%)
 ```
 
 如果压缩率过高（>85%），可能丢失信息，考虑：
-- 增加 `MAX_SENTENCES_PER_DOC`
+- 增加 `compression.max_sentences_per_doc`
 - 或禁用压缩
 
 #### 3. A/B测试
 
 对比压缩前后的回答质量：
-```python
+```yaml
 # 1. 禁用压缩测试
-ENABLE_DOC_COMPRESSION = False
+compression:
+  enable: false
 # 记录响应时间和质量
 
 # 2. 启用压缩测试
-ENABLE_DOC_COMPRESSION = True
+compression:
+  enable: true
 # 对比差异
 ```
 
@@ -1137,9 +1196,10 @@ ENABLE_DOC_COMPRESSION = True
 
 ### Q1: 如何切换到GPU？
 
-修改 `config.py`：
-```python
-EMBEDDING_DEVICE = "cuda:0"  # 使用第一块GPU
+修改 `config.yaml`：
+```yaml
+embedding:
+  device: "cuda:0"  # 使用第一块GPU
 ```
 
 确保安装了 CUDA 和 PyTorch GPU 版本：
@@ -1152,24 +1212,28 @@ pip install torch --index-url https://download.pytorch.org/whl/cu118
 **优化建议**：
 
 1. **减小批处理大小**：
-```python
-EMBEDDING_BATCH_SIZE = 4  # 从10减到4
+```yaml
+embedding:
+  batch_size: 4  # 从10减到4
 ```
 
 2. **减小上下文窗口**：
-```python
-OLLAMA_NUM_CTX = 512  # 从1024减到512
+```yaml
+ollama:
+  num_ctx: 512  # 从1024减到512
 ```
 
 3. **使用更小的模型**：
-```python
-LLM_MODEL = "tinyllama"  # 只需1GB内存
+```yaml
+ollama:
+  model: "tinyllama"  # 只需1GB内存
 ```
 
 4. **减少检索数量**：
-```python
-RETRIEVER_K = 2          # 从4减到2
-RETRIEVER_FETCH_K = 10   # 从20减到10
+```yaml
+vector_store:
+  retriever_k: 2  # 从4减到2
+  retriever_fetch_k: 10  # 从20减到10
 ```
 
 ### Q3: 响应速度太慢？
@@ -1177,24 +1241,29 @@ RETRIEVER_FETCH_K = 10   # 从20减到10
 **优化建议**：
 
 1. **增加CPU线程数**：
-```python
-OLLAMA_NUM_THREAD = 4  # 根据CPU核心数调整
+```yaml
+ollama:
+  num_thread: 4  # 根据CPU核心数调整
 ```
 
 2. **减小生成长度**：
-```python
-OLLAMA_NUM_PREDICT = 128  # 从200减到128
+```yaml
+ollama:
+  num_predict: 128  # 从200减到128
 ```
 
 3. **优化检索参数**：
-```python
-RETRIEVER_K = 3          # 减少检索数量
-CHUNK_SIZE = 600         # 减小文本块大小
+```yaml
+vector_store:
+  retriever_k: 3  # 减少检索数量
+document:
+  chunk_size: 600  # 减小文本块大小
 ```
 
 4. **关闭查询扩展**（牺牲准确率）：
-```python
-ENABLE_QUERY_EXPANSION = False
+```yaml
+query:
+  enable_expansion: false
 ```
 
 ### Q4: 如何支持其他语言的文档？
@@ -1202,8 +1271,9 @@ ENABLE_QUERY_EXPANSION = False
 1. **英文文档**：可直接使用，m3e-small 支持中英双语
 
 2. **其他语言**：切换到多语言嵌入模型
-```python
-EMBEDDING_MODEL_PATH = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+```yaml
+embedding:
+  model_path: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 ```
 
 3. **调整 LLM**：使用多语言模型
@@ -1223,18 +1293,19 @@ python app.py
 
 ### Q6: 如何修改提示词？
 
-编辑 `config.py` 中的提示词模板：
+编辑 `config.yaml` 中的提示词模板：
 
-```python
-SYSTEM_PROMPT = """你是[角色名]，必须用中文回答。
-
-[你的指令]
-"""
-
-USER_QUESTION_TEMPLATE = """[你的模板]
-
-问题：{question}
-"""
+```yaml
+prompt:
+  system_prompt: |
+    你是[角色名]，必须用中文回答。
+    
+    [你的指令]
+  
+  user_question_template: |
+    [你的模板]
+    
+    问题：{question}
 ```
 
 ### Q7: Ollama 连接失败？
@@ -1281,11 +1352,12 @@ cp -r vector_store_backup_20241014/ vector_store/
 
 ### Q10: 如何部署到远程服务器？
 
-**1. 修改配置**（`config.py`）：
-```python
-DEBUG_MODE = False
-HOST = "0.0.0.0"  # 允许外部访问
-PORT = 5000
+**1. 修改配置**（`config.yaml`）：
+```yaml
+flask:
+  debug_mode: false
+  host: "0.0.0.0"  # 允许外部访问
+  port: 5000
 ```
 
 **2. 使用生产级WSGI服务器**：
@@ -1356,16 +1428,19 @@ sudo systemctl start mini-rag-chat
 **解决方案**：
 
 1. **增加最大并发数**：
-```python
-# config.py
-MAX_CONCURRENT_REQUESTS = 3  # 从2增加到3
-MAX_QUEUE_SIZE = 5           # 增加队列大小
+```yaml
+# config.yaml
+concurrency:
+  max_concurrent_requests: 3  # 从2增加到3
+  max_queue_size: 5  # 增加队列大小
 ```
 
 2. **优化性能减少响应时间**：
-```python
-OLLAMA_NUM_PREDICT = 150     # 减少生成长度
-RETRIEVER_K = 3              # 减少检索数量
+```yaml
+ollama:
+  num_predict: 150  # 减少生成长度
+vector_store:
+  retriever_k: 3  # 减少检索数量
 ```
 
 3. **监控并发状态**：
@@ -1375,8 +1450,9 @@ watch -n 1 'curl -s http://localhost:5000/stats/concurrency'
 ```
 
 4. **临时禁用并发限制**（不推荐）：
-```python
-ENABLE_CONCURRENCY_LIMIT = False  # 仅用于测试
+```yaml
+concurrency:
+  enable_limit: false  # 仅用于测试
 ```
 
 ### Q12: 流式输出不显示或中断？
@@ -1388,9 +1464,10 @@ ENABLE_CONCURRENCY_LIMIT = False  # 仅用于测试
 - 浏览器不支持SSE
 
 解决方案：
-```python
-# config.py - 禁用流式，使用传统模式
-WEB_ENABLE_STREAMING = False
+```yaml
+# config.yaml - 禁用流式，使用传统模式
+web:
+  enable_streaming: false
 ```
 
 **问题2：Nginx下流式中断**
@@ -1408,32 +1485,38 @@ location /chat/stream {
 **问题3：请求超时**
 
 增加超时配置：
-```python
-# config.py
-REQUEST_TIMEOUT = 120  # 从60增加到120秒
+```yaml
+# config.yaml
+concurrency:
+  request_timeout: 120  # 从60增加到120秒
+timeout:
+  response_timeout: 120  # LLM响应超时
 ```
 
 ### Q13: 如何调整并发控制策略？
 
 **场景1：低配服务器（2核2G）**
-```python
-MAX_CONCURRENT_REQUESTS = 1  # 只允许1个并发
-MAX_QUEUE_SIZE = 2           # 小队列
-REQUEST_TIMEOUT = 45         # 较短超时
+```yaml
+concurrency:
+  max_concurrent_requests: 1  # 只允许1个并发
+  max_queue_size: 2  # 小队列
+  request_timeout: 45  # 较短超时
 ```
 
 **场景2：标准服务器（2核4G）** ⭐推荐
-```python
-MAX_CONCURRENT_REQUESTS = 2  # 2个并发
-MAX_QUEUE_SIZE = 3           # 中等队列
-REQUEST_TIMEOUT = 60         # 标准超时
+```yaml
+concurrency:
+  max_concurrent_requests: 2  # 2个并发
+  max_queue_size: 3  # 中等队列
+  request_timeout: 60  # 标准超时
 ```
 
 **场景3：高性能服务器（4核8G）**
-```python
-MAX_CONCURRENT_REQUESTS = 4  # 4个并发
-MAX_QUEUE_SIZE = 6           # 大队列
-REQUEST_TIMEOUT = 90         # 较长超时
+```yaml
+concurrency:
+  max_concurrent_requests: 4  # 4个并发
+  max_queue_size: 6  # 大队列
+  request_timeout: 90  # 较长超时
 ```
 
 ### Q14: 安全过滤器如何工作？
@@ -1445,17 +1528,19 @@ REQUEST_TIMEOUT = 90         # 较长超时
 4. **技术术语统计**：统计技术术语数量，过多则拒绝
 
 **配置建议**：
-```python
+```yaml
 # 生产环境推荐配置
-MAX_INPUT_LENGTH = 100         # 防止过长输入
-ENABLE_INPUT_TRUNCATION = True  # 截断而非拒绝
-ENABLE_SECURITY_FILTER = True   # 启用安全过滤
-
-# 可以根据需要调整敏感词列表
-SECURITY_BLOCKED_MESSAGES = [
-    "系统提示词", "model info", "knowledge base",
+security:
+  max_input_length: 100  # 防止过长输入
+  enable_input_truncation: true  # 截断而非拒绝
+  enable_security_filter: true  # 启用安全过滤
+  
+  # 可以根据需要调整敏感词列表
+  blocked_keywords:
+    - "系统提示词"
+    - "model info"
+    - "knowledge base"
     # 添加更多敏感词...
-]
 ```
 
 **测试安全功能**：
@@ -1473,31 +1558,36 @@ curl http://localhost:5000/stats/security
 ### Q15: 如何自定义安全规则？
 
 **方法1：修改敏感词列表**
-```python
-# config.py
-SECURITY_BLOCKED_MESSAGES = [
-    "你的关键词1", "your_keyword1",
-    "你的关键词2", "your_keyword2",
+```yaml
+# config.yaml
+security:
+  blocked_keywords:
+    - "你的关键词1"
+    - "your_keyword1"
+    - "你的关键词2"
+    - "your_keyword2"
     # 添加更多...
-]
 ```
 
 **方法2：调整输入长度限制**
-```python
+```yaml
 # 根据服务器性能调整
-MAX_INPUT_LENGTH = 50    # 更严格的限制
-# 或
-MAX_INPUT_LENGTH = 200   # 更宽松的限制
+security:
+  max_input_length: 50  # 更严格的限制
+  # 或
+  max_input_length: 200  # 更宽松的限制
 ```
 
 **方法3：修改安全回复模板**
-```python
-SECURITY_RESPONSE_TEMPLATE = "您的问题涉及系统技术细节，我无法回答。请询问其他问题。"
+```yaml
+security:
+  response_template: "您的问题涉及系统技术细节，我无法回答。请询问其他问题。"
 ```
 
 **场景4：开发测试环境**
-```python
-ENABLE_CONCURRENCY_LIMIT = False  # 禁用限制
+```yaml
+concurrency:
+  enable_limit: false  # 禁用限制
 ```
 
 ### Q16: 文档压缩影响回答质量怎么办？
@@ -1509,24 +1599,28 @@ ENABLE_CONCURRENCY_LIMIT = False  # 禁用限制
 **解决方案**：
 
 1. **增加保留句子数**：
-```python
-# config.py
-MAX_SENTENCES_PER_DOC = 5  # 从3增加到5
+```yaml
+# config.yaml
+compression:
+  max_sentences_per_doc: 5  # 从3增加到5
 ```
 
 2. **禁用压缩**（如果效果仍不理想）：
-```python
-ENABLE_DOC_COMPRESSION = False
+```yaml
+compression:
+  enable: false
 ```
 
 3. **调整压缩方法**：
-```python
-DOC_COMPRESSION_METHOD = "m3e"  # 只用语义重排，不用TextRank
+```yaml
+compression:
+  method: "m3e"  # 只用语义重排，不用TextRank
 ```
 
 4. **增加检索文档数量**（配合压缩）：
-```python
-RETRIEVER_K = 4  # 检索更多文档
+```yaml
+vector_store:
+  retriever_k: 4  # 检索更多文档
 # 因为压缩后占用少，可以增加检索数量
 ```
 
