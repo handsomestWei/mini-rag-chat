@@ -1,44 +1,45 @@
 version: '3.8'
 
 services:
-  # Ollama 服务（仅内部网络访问）
+  # Ollama 服务（仅内部网络访问，如果使用本地模型则需要）
+  # 如果使用线上API（如硅基流动），可以注释掉此服务
   ollama:
     image: ollama/ollama:latest
-    container_name: ${OLLAMA_CONTAINER_NAME:-mini-rag-ollama}
+    container_name: ${OLLAMA_CONTAINER_NAME:-mini-rag-chat-ollama}
     # 不暴露端口到公网，仅内部网络访问
     expose:
       - "${OLLAMA_PORT:-11434}"
     volumes:
-      - ${OLLAMA_DATA_DIR:-/opt/mini-rag/ollama/data}:/root/.ollama
-      - ${OLLAMA_MODEL_DIR:-/opt/mini-rag/ollama/model}:/root/.ollama/models:ro # 只读挂载本地模型目录到 Ollama 模型路径
+      - ${OLLAMA_DATA_DIR:-/opt/mini-rag-chat/ollama/data}:/root/.ollama
+      - ${OLLAMA_MODEL_DIR:-/opt/mini-rag-chat/ollama/model}:/root/.ollama/models:ro # 只读挂载本地模型目录到 Ollama 模型路径
     environment:
       - OLLAMA_HOST=0.0.0.0 # 容器内监听所有接口（安全，因为使用 expose）
-      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-http://localhost,http://mini-rag,http://nginx} # 限制访问来源
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-http://localhost,http://mini-rag-chat,http://mini-rag-chat-nginx} # 限制访问来源
     restart: unless-stopped
     networks:
-      - ${NETWORK_NAME:-rag-network}
+      - ${NETWORK_NAME:-mini-rag-chat-network}
 
-  # Mini RAG Chat 服务
-  mini-rag:
+  # Mini RAG Chat 服务（如果使用线上API，可以注释掉此服务）
+  mini-rag-chat:
     image: ${MINI_RAG_IMAGE:-mini-rag-chat:latest}
     container_name: ${MINI_RAG_CONTAINER_NAME:-mini-rag-chat}
     ports:
       - "${MINI_RAG_PORT:-127.0.0.1:5000:5000}" # 只绑定到本地，不暴露到公网
     volumes:
       # 配置文件和数据目录
-      - ${CONFIG_FILE:-/opt/mini-rag/config.yaml}:/app/config.yaml:ro # 配置文件（只读）
-      - ${DATA_DIR:-/opt/mini-rag/data}:/app/data:ro # 知识库数据（只读）
-      - ${DATA_NEW_DIR:-/opt/mini-rag/data_new}:/app/data_new # 新数据目录（读写）
-      - ${VECTOR_STORE_DIR:-/opt/mini-rag/vector_store}:/app/vector_store # 向量存储目录
-      - ${MODEL_DIR:-/opt/mini-rag/model}:/app/model:ro # 模型目录（只读）
-      - ${LOG_DIR:-/opt/mini-rag/log}:/app/log # 日志目录
+      - ${CONFIG_FILE:-/opt/mini-rag-chat/config.yaml}:/app/config.yaml:ro # 配置文件（只读）
+      - ${DATA_DIR:-/opt/mini-rag-chat/data}:/app/data:ro # 知识库数据（只读）
+      - ${DATA_NEW_DIR:-/opt/mini-rag-chat/data_new}:/app/data_new # 新数据目录（读写）
+      - ${VECTOR_STORE_DIR:-/opt/mini-rag-chat/vector_store}:/app/vector_store # 向量存储目录
+      - ${MODEL_DIR:-/opt/mini-rag-chat/model}:/app/model:ro # 模型目录（只读）
+      - ${LOG_DIR:-/opt/mini-rag-chat/log}:/app/log # 日志目录
       # 代码文件挂载（开发模式，修改代码无需重新构建镜像）
-      # CODE_DIR 指向项目源代码目录（默认与BASE_DIR相同，即/opt/mini-rag/）
-      - ${CODE_DIR:-/opt/mini-rag}/app.py:/app/app.py:ro # 主应用入口
-      - ${CODE_DIR:-/opt/mini-rag}/config_loader.py:/app/config_loader.py:ro # 配置加载器
-      - ${CODE_DIR:-/opt/mini-rag}/module:/app/module:ro # 核心模块目录
-      - ${CODE_DIR:-/opt/mini-rag}/tool:/app/tool:ro # 工具集目录（可选）
-      - ${TEMPLATES_DIR:-/opt/mini-rag/templates}:/app/templates # 前端模板目录（读写，方便修改）
+      # CODE_DIR 指向项目源代码目录（默认与BASE_DIR相同，即/opt/mini-rag-chat/）
+      - ${CODE_DIR:-/opt/mini-rag-chat}/app.py:/app/app.py:ro # 主应用入口
+      - ${CODE_DIR:-/opt/mini-rag-chat}/config_loader.py:/app/config_loader.py:ro # 配置加载器
+      - ${CODE_DIR:-/opt/mini-rag-chat}/module:/app/module:ro # 核心模块目录
+      - ${CODE_DIR:-/opt/mini-rag-chat}/tool:/app/tool:ro # 工具集目录（可选）
+      - ${TEMPLATES_DIR:-/opt/mini-rag-chat/templates}:/app/templates # 前端模板目录（读写，方便修改）
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -47,7 +48,26 @@ services:
       - ollama
     restart: unless-stopped
     networks:
-      - ${NETWORK_NAME:-rag-network}
+      - ${NETWORK_NAME:-mini-rag-chat-network}
+
+  # Nginx 反向代理服务（可选）
+  mini-rag-chat-nginx:
+    image: nginx:alpine
+    container_name: ${NGINX_CONTAINER_NAME:-mini-rag-chat-nginx}
+    ports:
+      - "${NGINX_PORT:-80:80}"
+      # 如果需要 HTTPS，取消下面的注释
+      # - "${NGINX_SSL_PORT:-443:443}"
+    volumes:
+      - ${NGINX_CONFIG:-./mini-rag-chat-nginx.conf}:/etc/nginx/conf.d/default.conf:ro
+      # 如果需要 SSL 证书，取消下面的注释并配置证书路径
+      # - ${NGINX_SSL_CERT:-/opt/mini-rag-chat/ssl/cert.pem}:/etc/nginx/ssl/cert.pem:ro
+      # - ${NGINX_SSL_KEY:-/opt/mini-rag-chat/ssl/key.pem}:/etc/nginx/ssl/key.pem:ro
+    depends_on:
+      - mini-rag-chat
+    restart: unless-stopped
+    networks:
+      - ${NETWORK_NAME:-mini-rag-chat-network}
 
 volumes:
   ollama_data:
@@ -55,5 +75,5 @@ volumes:
 
 networks:
   rag-network:
-    name: ${NETWORK_NAME:-rag-network}
+    name: ${NETWORK_NAME:-mini-rag-chat-network}
     driver: bridge
